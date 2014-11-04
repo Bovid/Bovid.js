@@ -243,7 +243,7 @@
         $lines = preg_match("/(?:\r\n?|\n).*/", $ch);
         if (count($lines) > 0) {
             $this->yy->lineNo++;
-            $this->yy->lastLine++;
+            $this->yy->loc->lastLine++;
         } else {
             $this->yy->loc->lastColumn++;
         }
@@ -287,7 +287,7 @@
         );
 
         if (isset($this->ranges)) {
-            $yy->loc->range = array($r[0], $r[0] + $this->yy->leng - $len);
+            $yy->loc->range(new ParserRange($r->x, $r->x + $this->yy->leng - $len));
         }
 
         $this->unputStack[] = $yy;
