@@ -6,19 +6,10 @@ class LRGenerator extends LookAhead {
   var NONASSOC = 0;
   var lrGeneratorDebug = {
     beforeparseTable: function () {
-      this.trace("Building parse table.");
+
     },
     afterparseTable: function () {
-      var self = this;
-      if (this.conflicts > 0) {
-        this.resolutions.forEach(function (r, i) {
-          if (r[2].bydefault) {
-            self.warn('Conflict at state: ',r[0], ', token: ',r[1], "\n  ", printAction(r[2].r, self), "\n  ", printAction(r[2].s, self));
-          }
-        });
-        this.trace("\n"+this.conflicts+" Conflict(s) found in grammar.");
-      }
-      this.trace("Done.");
+
     },
     aftercanonicalCollection: function (states) {
       var trace = this.trace;
@@ -172,23 +163,26 @@ class LRGenerator extends LookAhead {
   }
 
   parseTable(itemSets) {
+    if (typeof this.debugCB === 'function') {
+      this.debugCB("Building parse table.");
+    }
+
     var states = [],
         nonterminals = this.nonterminals,
         operators = this.operators,
         conflictedStates = {}, // array of [state, token] tuples
-        self = this,
         s = 1, // shift
         r = 2, // reduce
         a = 3; // accept
 
     // for each item set
-    itemSets.forEach(function (itemSet, k) {
+    itemSets.forEach((itemSet, k) => {
       var state = states[k] = {};
       var action, stackSymbol;
 
       // set shift and goto actions
       for (stackSymbol in itemSet.edges) {
-        itemSet.forEach(function (item, j) {
+        itemSet.forEach((item, j) => {
           // find shift and goto actions
           if (item.markedSymbol == stackSymbol) {
             var gotoState = itemSet.edges[stackSymbol];
@@ -205,7 +199,7 @@ class LRGenerator extends LookAhead {
       }
 
       // set accept action
-      itemSet.forEach(function (item, j) {
+      itemSet.forEach((item, j) => {
         if (item.markedSymbol == self.EOF) {
           // accept
           state[self.symbols_[self.EOF]] = [a];
@@ -256,11 +250,23 @@ class LRGenerator extends LookAhead {
     });
 
     if (!self.DEBUG && self.conflicts > 0) {
-      self.warn("\nStates with conflicts:");
+      this.warn("\nStates with conflicts:");
       each(conflictedStates, function (val, state) {
         self.warn('State '+state);
         self.warn('  ',itemSets.item(state).join("\n  "));
       });
+    }
+
+    if (typeof this.debugCB === 'function') {
+      if (this.conflicts > 0) {
+        this.resolutions.forEach((r, i) => {
+          if (r[2].bydefault) {
+            this.warn('Conflict at state: ',r[0], ', token: ',r[1], "\n  ", printAction(r[2].r, this), "\n  ", printAction(r[2].s, this));
+          }
+        });
+        this.trace("\n"+this.conflicts+" Conflict(s) found in grammar.");
+      }
+      this.trace("Done.");
     }
 
     return states;

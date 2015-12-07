@@ -13,7 +13,7 @@ class LR1Generator extends LRGenerator {
     do {
       itemQueue = [];
       closureSet.concat(set);
-      set.forEach(function (item) {
+      set.forEach((item) => {
         var symbol = item.markedSymbol;
         var b, r;
 
@@ -24,7 +24,7 @@ class LR1Generator extends LRGenerator {
           if (b.length === 0 || item.production.nullable || self.nullable(r)) {
             b = b.concat(item.follows);
           }
-          self.nonterminals[symbol].productions.forEach(function (production) {
+          self.nonterminals[symbol].productions.forEach((production) => {
             var newItem = new self.Item(production, 0, b);
             if(!closureSet.contains(newItem) && !itemQueue.contains(newItem)) {
               itemQueue.push(newItem);
