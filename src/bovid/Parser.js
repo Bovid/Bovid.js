@@ -1,4 +1,4 @@
-class Parser {
+export default class Parser {
   construct(dict) {
     this.table = dict.table;
     this.defaultActions = dict.defaultActions;
@@ -9,8 +9,7 @@ class Parser {
   }
 
   parse(input) {
-    var self = this,
-        stack = [0],
+    var stack = [0],
         tstack = [], // token stack
         vstack = [null], // semantic value stack
         lstack = [], // location stack
@@ -64,7 +63,7 @@ class Parser {
           token = lexer.lex() || EOF;
           // if token isn't its numeric value, convert
           if (typeof token !== 'number') {
-            token = self.symbols_[token] || token;
+            token = this.symbols_[token] || token;
           }
           return token;
         }

@@ -1,4 +1,4 @@
-class LRGeneratorItem {
+export default class LRGeneratorItem {
   constructor(production, dot, f, predecessor) {
     this.production = production;
     this.dotPosition = dot || 0;

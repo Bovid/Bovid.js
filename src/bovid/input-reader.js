@@ -1,4 +1,4 @@
-class InputReader {
+export default class InputReader {
 
   var stickyCompatible = RegExp.prototype.sticky !== undefined,
     rules,

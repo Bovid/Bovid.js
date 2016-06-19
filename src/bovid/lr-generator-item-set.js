@@ -1,4 +1,4 @@
-class LRGeneratorItemSet {
+export default class LRGeneratorItemSet {
   constructor() {
     this.reductions = [];
     this.goes = {};
@@ -11,8 +11,8 @@ class LRGeneratorItemSet {
     }
   }
 
-  concat(set) {
-    var a = set._items || set;
+  concat(_set) {
+    var a = _set._items || _set;
     for (var i = a.length - 1; i >= 0; i--) {
       this.hash_[a[i].id] = true; //i;
     }

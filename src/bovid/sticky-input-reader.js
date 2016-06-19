@@ -1,3 +1,5 @@
+import InputReader from './input-reader';
+
 /**
  * in input reader for parser/lexer, uses sticky behavior
  * @param {String} input
@@ -6,9 +8,11 @@ class StickyInputReader extends InputReader {
 
   constructor() {
     super();
-    rules = lexer.rules;
-    max = rules.length;
-    i = 0;
+
+    let rules = lexer.rules,
+      max = rules.length,
+      i = 0;
+
     for (; i < max; i++) {
       rule = rules[i];
       rules[i] = new RegExp(rule.source.substring(1), 'y');

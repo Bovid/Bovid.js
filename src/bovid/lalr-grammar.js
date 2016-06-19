@@ -1,4 +1,6 @@
-class LALRGrammar extends LookAhead {
+import Lookahead from './lookahead';
+
+export default class LALRGrammar extends Lookahead {
   var nterms_ = {};
 
   constructor(originalGrammar) {

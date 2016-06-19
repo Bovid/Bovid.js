@@ -1,4 +1,4 @@
-class NonTerminal {
+export default class NonTerminal {
   constructor(symbol) {
     this.symbol = symbol;
     this.productions = [];

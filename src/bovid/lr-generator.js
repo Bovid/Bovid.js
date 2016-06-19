@@ -1,8 +1,11 @@
-import 'JSONSelect';
-import 'esprima';
-import 'escodegen';
+import JSONSelect from 'JSONSelect';
+import esprima from 'esprima';
+import escodegen from 'escodegen';
+import Lookahead from './lookahead';
+import LRGeneratorItem from './lr-generator-item';
+import LRGeneratorItemSet from './lr-generator-item-set';
 
-class LRGenerator extends LookAhead {
+export default class LRGenerator extends Lookahead {
   var NONASSOC = 0;
   var lrGeneratorDebug = {
     beforeparseTable: function () {
@@ -64,23 +67,22 @@ class LRGenerator extends LookAhead {
   }
 
   closureOperation(itemSet /*, closureSet*/) {
-    var closureSet = LRGeneratorItemSet();
-    var self = this;
-
-    var set = itemSet,
-        itemQueue, syms = {};
+    var closureSet = LRGeneratorItemSet(),
+      _set = itemSet,
+      itemQueue,
+      syms = {};
 
     do {
       itemQueue = [];
-      closureSet.concat(set);
-      set.forEach(function CO_set_forEach (item) {
+      closureSet.concat(_set);
+      _set.forEach((item) => {
         var symbol = item.markedSymbol;
 
         // if token is a non-terminal, recursively add closures
-        if (symbol && self.nonterminals[symbol]) {
+        if (symbol && this.nonterminals[symbol]) {
           if(!syms[symbol]) {
-            self.nonterminals[symbol].productions.forEach(function CO_nt_forEach (production) {
-              var newItem = new self.Item(production, 0);
+            this.nonterminals[symbol].productions.forEach((production) => {
+              var newItem = new this.Item(production, 0);
               if(!closureSet.contains(newItem))
                 itemQueue.push(newItem);
             });
@@ -97,7 +99,7 @@ class LRGenerator extends LookAhead {
         }
       });
 
-      set = itemQueue;
+      _set = itemQueue;
 
     } while (!itemQueue.isEmpty());
 
@@ -105,12 +107,11 @@ class LRGenerator extends LookAhead {
   }
 
   goToOperation(itemSet, symbol) {
-    var gotoSet = new this.ItemSet(),
-        self = this;
+    let gotoSet = new this.ItemSet();
 
-    itemSet.forEach(function goto_forEach(item, n) {
+    itemSet.forEach((item, n) => {
       if (item.markedSymbol === symbol) {
-        gotoSet.push(new self.Item(item.production, item.dotPosition+1, item.follows, n));
+        gotoSet.push(new this.Item(item.production, item.dotPosition+1, item.follows, n));
       }
     });
 
@@ -124,7 +125,6 @@ class LRGenerator extends LookAhead {
     var firstState = this.closureOperation(new LRGeneratorItemSet(item1)),
         states = [firstState],
         marked = 0,
-        self = this,
         itemSet;
 
     states.has = {};
@@ -132,9 +132,9 @@ class LRGenerator extends LookAhead {
 
     while (marked !== states.size()) {
       itemSet = states.item(marked); marked++;
-      itemSet.forEach(function CC_itemSet_forEach (item) {
-        if (item.markedSymbol && item.markedSymbol !== self.EOF)
-          self.canonicalCollectionInsert(item.markedSymbol, itemSet, states, marked-1);
+      itemSet.forEach((item) => {
+        if (item.markedSymbol && item.markedSymbol !== this.EOF)
+          this.canonicalCollectionInsert(item.markedSymbol, itemSet, states, marked-1);
       });
     }
 
@@ -188,11 +188,11 @@ class LRGenerator extends LookAhead {
             var gotoState = itemSet.edges[stackSymbol];
             if (nonterminals[stackSymbol]) {
               // store state to go to after a reduce
-              //self.trace(k, stackSymbol, 'g'+gotoState);
-              state[self.symbols_[stackSymbol]] = gotoState;
+              //this.trace(k, stackSymbol, 'g'+gotoState);
+              state[this.symbols_[stackSymbol]] = gotoState;
             } else {
-              //self.trace(k, stackSymbol, 's'+gotoState);
-              state[self.symbols_[stackSymbol]] = [s,gotoState];
+              //this.trace(k, stackSymbol, 's'+gotoState);
+              state[this.symbols_[stackSymbol]] = [s,gotoState];
             }
           }
         });
@@ -200,35 +200,35 @@ class LRGenerator extends LookAhead {
 
       // set accept action
       itemSet.forEach((item, j) => {
-        if (item.markedSymbol == self.EOF) {
+        if (item.markedSymbol == this.EOF) {
           // accept
-          state[self.symbols_[self.EOF]] = [a];
-          //self.trace(k, self.EOF, state[self.EOF]);
+          state[this.symbols_[this.EOF]] = [a];
+          //this.trace(k, this.EOF, state[this.EOF]);
         }
       });
 
-      var allterms = self.lookAheads ? false : self.terminals;
+      var allterms = this.lookaheads ? false : this.terminals;
 
       // set reductions and resolve potential conflicts
       itemSet.reductions.forEach((item, j) => {
         // if parser uses lookahead, only enumerate those terminals
-        var terminals = allterms || self.lookAheads(itemSet, item);
+        var terminals = allterms || this.lookaheads(itemSet, item);
 
         terminals.forEach((stackSymbol) => {
-          action = state[self.symbols_[stackSymbol]];
+          action = state[this.symbols_[stackSymbol]];
           var op = operators[stackSymbol];
 
           // Reading a terminal and current position is at the end of a production, try to reduce
           if (action || action && action.length) {
             var sol = this.resolveConflict(item.production, op, [r,item.production.id], action[0] instanceof Array ? action[0] : action);
-            self.resolutions.push([k,stackSymbol,sol]);
+            this.resolutions.push([k,stackSymbol,sol]);
             if (sol.bydefault) {
-              self.conflicts++;
-              if (!self.DEBUG) {
-                self.warn('Conflict in grammar: multiple actions possible when lookahead token is ',stackSymbol,' in state ',k, "\n- ", printAction(sol.r, self), "\n- ", printAction(sol.s, self));
+              this.conflicts++;
+              if (!this.DEBUG) {
+                this.warn('Conflict in grammar: multiple actions possible when lookahead token is ',stackSymbol,' in state ',k, "\n- ", printAction(sol.r, this), "\n- ", printAction(sol.s, this));
                 conflictedStates[k] = true;
               }
-              if (self.options.noDefaultResolve) {
+              if (this.options.noDefaultResolve) {
                 if (!(action[0] instanceof Array))
                   action = [action];
                 action.push(sol.r);
@@ -240,20 +240,20 @@ class LRGenerator extends LookAhead {
             action = [r,item.production.id];
           }
           if (action && action.length) {
-            state[self.symbols_[stackSymbol]] = action;
+            state[this.symbols_[stackSymbol]] = action;
           } else if (action === NONASSOC) {
-            state[self.symbols_[stackSymbol]] = undefined;
+            state[this.symbols_[stackSymbol]] = undefined;
           }
         });
       });
 
     });
 
-    if (!self.DEBUG && self.conflicts > 0) {
+    if (!this.DEBUG && this.conflicts > 0) {
       this.warn("\nStates with conflicts:");
-      each(conflictedStates, function (val, state) {
-        self.warn('State '+state);
-        self.warn('  ',itemSets.item(state).join("\n  "));
+      each(conflictedStates, (val, state) => {
+        this.warn('State '+state);
+        this.warn('  ',itemSets.item(state).join("\n  "));
       });
     }
 
@@ -560,7 +560,7 @@ class LRGenerator extends LookAhead {
         tstack = token;
         token = tstack.pop();
       }
-      token = self.symbols_[token] || token;
+      token = this.symbols_[token] || token;
     }
     return token;
   }
@@ -669,11 +669,10 @@ class LRGenerator extends LookAhead {
     // for debugging
     p.productions = this.productions;
 
-    var self = this;
     function bind(method) {
-      return function() {
-        self.lexer = p.lexer;
-        return self[method].apply(self, arguments);
+      return () => {
+        this.lexer = p.lexer;
+        return this[method].apply(this, arguments);
       };
     }
 

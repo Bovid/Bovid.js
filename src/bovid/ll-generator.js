@@ -1,4 +1,6 @@
-class LLGenerator extends LookAhead {
+import Lookahead from './lookahead';
+
+export default class LLGenerator extends Lookahead {
   constructor() {
     this.computeLookaheads();
     this.table = this.parseTable(this.productions);

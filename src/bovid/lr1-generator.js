@@ -1,4 +1,7 @@
-class LR1Generator extends LRGenerator {
+import LRGenerator from 'lr-generator';
+import LRGeneratorItemSet from './lr-generator-item-set';
+
+export default class LR1Generator extends LRGenerator {
   lookAheads(state, item) {
     return item.follows;
   }
@@ -7,13 +10,13 @@ class LR1Generator extends LRGenerator {
     var closureSet = new LRGeneratorItemSet();
     var self = this;
 
-    var set = itemSet,
+    var _set = itemSet,
         itemQueue, syms = {};
 
     do {
       itemQueue = [];
       closureSet.concat(set);
-      set.forEach((item) => {
+      _set.forEach((item) => {
         var symbol = item.markedSymbol;
         var b, r;
 
@@ -25,7 +28,7 @@ class LR1Generator extends LRGenerator {
             b = b.concat(item.follows);
           }
           self.nonterminals[symbol].productions.forEach((production) => {
-            var newItem = new self.Item(production, 0, b);
+            var newItem = new this.Item(production, 0, b);
             if(!closureSet.contains(newItem) && !itemQueue.contains(newItem)) {
               itemQueue.push(newItem);
             }
@@ -36,7 +39,7 @@ class LR1Generator extends LRGenerator {
         }
       });
 
-      set = itemQueue;
+      _set = itemQueue;
     } while (!itemQueue.isEmpty());
 
     return closureSet;

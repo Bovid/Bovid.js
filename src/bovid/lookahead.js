@@ -1,4 +1,4 @@
-class LookAhead {
+export default class LookAhead {
   computeLookAheads() {
     this.computeLookAheads = function () {};
     this.nullableSets();

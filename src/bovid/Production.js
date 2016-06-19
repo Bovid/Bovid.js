@@ -1,4 +1,4 @@
-class Production {
+export default class Production {
   constructor(symbol, handle, id) {
     this.symbol = symbol;
     this.handle = handle;

@@ -1,4 +1,8 @@
-class LALRGenerator extends LRGenerator {
+import LRGenerator from './lr-generator';
+import LALRGrammer from './lalr-grammar';
+import Production from './production';
+
+export default class LALRGenerator extends LRGenerator {
   constructor(grammar, options) {
     super();
     options = options || {};

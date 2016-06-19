@@ -1,7 +1,9 @@
-import 'jison-lex';
-import 'ebnf-parser';
+import Lexer from 'jison-lex';
+import ebnfParser from 'ebnf-parser';
+import NonTerminal from './non-terminal';
+import Production from './production';
 
-class AbstractGenerator {
+export default class AbstractGenerator {
   constructor(grammar, opt, debugCB) {
     this.debugCB = debugCB || null;
 
@@ -159,7 +161,7 @@ class AbstractGenerator {
       if (!bnf.hasOwnProperty(symbol)) continue;
 
       addSymbol(symbol);
-      nonterminals[symbol] = new bovid.NonTerminal(symbol);
+      nonterminals[symbol] = new NonTerminal(symbol);
 
       if (typeof bnf[symbol] === 'string') {
         prods = bnf[symbol].split(/\s*\|\s*/g);
