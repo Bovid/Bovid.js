@@ -1,8 +1,8 @@
 // TODO: ...should probably have some real performance tests.
 
-var Jison = require("./setup").Jison;
+import Parser from '../src/parser';
 
-var grammar = {
+let grammar = {
     "lex": {
         "macros": {
             "digit": "[0-9]",
@@ -104,5 +104,5 @@ var grammar = {
     }
 };
 
-var parser = new Jison.Parser(grammar, {type: 'lalr'});
+let parser = new Parser(grammar, {type: 'lalr'});
 

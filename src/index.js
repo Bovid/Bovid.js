@@ -2,11 +2,16 @@
 // Zachary Carter <zach@carter.name>
 // MIT X Licensed
 
-var fs      = require('fs')
-  , path    = require('path')
-  , version = require('../package.json').version
-  , print
-  ;
+import fs from 'fs';
+import path from 'path';
+import { version } from '../package.json';
+import LR0Generator from './lr0-generator';
+import SLRGenerator from './slr-generator';
+import LR1Generator from './lr1-generator';
+import LLGenerator from './ll-generator';
+import LALRGenerator from './lalr-generator';
+
+let print;
 
 // detect print
 if (typeof console === 'object' && typeof console.log === 'function') {
@@ -20,19 +25,20 @@ if (typeof console === 'object' && typeof console.log === 'function') {
 }
 
 // default main method for generated commonjs modules
-function commonjsMain (args) {
+function commonjsMain(args) {
   if (!args[1]) {
     console.log('Usage: '+args[0]+' FILE');
     process.exit(1);
   }
-  var source = require('fs').readFileSync(require('path').normalize(args[1]), "utf8");
+  let source = fs.readFileSync(path.normalize(args[1]), "utf8");
   return exports.parser.parse(source);
 }
 
 function generate(g, options) {
-  var opt = Object.assign({}, g.options, options)
+  let opt = Object.assign({}, g.options, options)
     , generator
     ;
+
   switch (opt.type) {
     case 'lr0':
       generator = new LR0Generator(g, opt);
@@ -53,12 +59,12 @@ function generate(g, options) {
   return generator.createParser();
 }
 
-module.exports = {
-  version: version,
-  generate: generate,
-  LR0Generator: LR0Generator,
-  LALRGenerator: LALRGenerator,
-  SLRGenerator: SLRGenerator,
-  LR1Generator: LR1Generator,
-  LLGenerator: LLGenerator
+export default {
+  version,
+  generate,
+  LR0Generator,
+  LALRGenerator,
+  SLRGenerator,
+  LR1Generator,
+  LLGenerator
 };
