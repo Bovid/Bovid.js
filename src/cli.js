@@ -130,7 +130,6 @@ function processStdin () {
 function generateParserString(opts, grammar) {
     opts = opts || {};
     const parser = require('./index');
-
     const settings = grammar.options || {};
 
     if (opts['parser-type']) {
