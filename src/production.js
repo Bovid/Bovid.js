@@ -9,6 +9,6 @@ export default class Production {
   }
 
   toString() {
-    return this.symbol + " -> " + this.handle.join(' ');
+    return `${this.symbol} -> ${this.handle.join(' ')}`;
   }
 }
