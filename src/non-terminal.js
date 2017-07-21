@@ -8,11 +8,11 @@ export default class NonTerminal {
   }
 
   toString(){
-    var str = this.symbol+"\n";
+    var str = `${this.symbol}\n`;
     str += (this.nullable ? 'nullable' : 'not nullable');
-    str += "\nFirsts: "+this.first.join(', ');
-    str += "\nFollows: "+this.first.join(', ');
-    str += "\nProductions:\n  "+this.productions.join('\n  ');
+    str += `\nFirsts: ${this.first.join(', ')}`;
+    str += `\nFollows: ${this.first.join(', ')}`;
+    str += `\nProductions:\n ${this.productions.join('\n  ')}`;
     return str;
   }
 }
