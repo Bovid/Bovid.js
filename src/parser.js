@@ -3,7 +3,7 @@ const TERROR = 2;
 const EOF = 1;
 
 export default class Parser {
-  construct(dict) {
+  constructor(dict) {
     this.table = dict.table;
     this.defaultActions = dict.defaultActions;
     this.performAction = dict.performAction;
@@ -18,12 +18,41 @@ export default class Parser {
     this.yy = null;
   }
 
-  setLexer(lexer) {
-    this.lexer = lexer;
+  lex() {
+    let token;
+    token = this.lexer.lex() || EOF;
+    // if token isn't its numeric value, convert
+    if (typeof token !== 'number') {
+      token = this.symbols_[token] || token;
+    }
+    return token;
   }
 
+  // Return the rule stack depth where the nearest error rule can be found.
+  // Return FALSE when no error recovery rule was found.
+  locateNearestErrorRecoveryRule(state) {
+    const stack = this.stack;
+    let stack_probe = stack.length - 1;
+    let depth = 0;
+
+    // try to recover from error
+    for (; ;) {
+      // check for error recovery rule in this state
+      if ((TERROR.toString()) in this.table[state]) {
+        return depth;
+      }
+      if (state === 0 || stack_probe < 2) {
+        return false; // No suitable error recovery rule available.
+      }
+      stack_probe -= 2; // popStack(1): [symbol, action]
+      state = stack[stack_probe];
+      ++depth;
+    }
+  }
+
+
   parse(input) {
-    var stack = this.stack = [0],
+    let stack = this.stack = [0],
         tstack = this.tstack = [], // token stack
         vstack = this.vstack = [null], // semantic value stack
         lstack = this.lstack = [], // location stack
@@ -33,13 +62,13 @@ export default class Parser {
         yyleng = 0,
         recovering = 0;
 
-    var args = lstack.slice.call(arguments, 1);
+    const args = lstack.slice.call(arguments, 1);
 
     //this.reductionCount = this.shiftCount = 0;
-    var lexer = this.lexer;
-    var sharedState = {yy: {}};
+    const lexer = this.lexer;
+    let sharedState = {yy: {}};
     // copy state
-    for (var k in this.yy) {
+    for (let k in this.yy) {
       if (Object.prototype.hasOwnProperty.call(this.yy, k)) {
         sharedState.yy[k] = this.yy[k];
       }
@@ -48,13 +77,15 @@ export default class Parser {
     lexer.setInput(input, sharedState.yy);
     sharedState.yy.lexer = lexer;
     sharedState.yy.parser = this;
+    
     if (typeof lexer.yylloc === 'undefined') {
       lexer.yylloc = {};
     }
-    var yyloc = lexer.yylloc;
+
+    let yyloc = lexer.yylloc;
     lstack.push(yyloc);
 
-    var ranges = lexer.options && lexer.options.ranges;
+    let ranges = lexer.options && lexer.options.ranges;
 
     if (typeof sharedState.yy.parseError === 'function') {
       this.parseError = sharedState.yy.parseError;
@@ -63,7 +94,7 @@ export default class Parser {
     }
 
     _token_stack:
-    var symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
+    let symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
     while (true) {
       // retrieve state number from top of stack
       state = stack[stack.length - 1];
@@ -82,8 +113,8 @@ export default class Parser {
       _handle_error:
         // handle parse error
           if (typeof action === 'undefined' || !action.length || !action[0]) {
-            var error_rule_depth;
-            var errStr = '';
+            let error_rule_depth;
+            let errStr = '';
 
             if (!recovering) {
               // first see if there's any chance at hitting an error recovery rule:
@@ -93,7 +124,7 @@ export default class Parser {
               expected = [];
               for (p in table[state]) {
                 if (this.terminals_[p] && p > TERROR) {
-                  expected.push("'" + this.terminals_[p] + "'");
+                  expected.push(`'${this.terminals_[p]}'`);
                 }
               }
               if (lexer.showPosition) {
@@ -144,12 +175,13 @@ export default class Parser {
 
       // this shouldn't happen, unless resolve defaults are off
       if (action[0] instanceof Array && action.length > 1) {
-        throw new Error('Parse Error: multiple actions possible at state: ' + state + ', token: ' + symbol);
+        throw new Error(`Parse Error: multiple actions possible at state: ${state}, token: ${symbol}`);
       }
 
       switch (action[0]) {
-        case 1: // shift
-          //this.shiftCount++;
+        case 1: 
+          // shift
+          // this.shiftCount++;
 
           stack.push(symbol);
           vstack.push(lexer.yytext);
@@ -220,27 +252,6 @@ export default class Parser {
     return true;
   }
 
-  // Return the rule stack depth where the nearest error rule can be found.
-// Return FALSE when no error recovery rule was found.
-  locateNearestErrorRecoveryRule(state) {
-    var stack = this.stack;
-    var stack_probe = stack.length - 1;
-    var depth = 0;
-
-    // try to recover from error
-    for (; ;) {
-      // check for error recovery rule in this state
-      if ((TERROR.toString()) in this.table[state]) {
-        return depth;
-      }
-      if (state === 0 || stack_probe < 2) {
-        return false; // No suitable error recovery rule available.
-      }
-      stack_probe -= 2; // popStack(1): [symbol, action]
-      state = stack[stack_probe];
-      ++depth;
-    }
-  }
 
   popStack(n) {
     this.stack.length = this.stack.length - 2 * n;
@@ -248,15 +259,10 @@ export default class Parser {
     this.lstack.length = this.lstack.length - n;
   }
 
-  lex() {
-    var token;
-    token = this.lexer.lex() || EOF;
-    // if token isn't its numeric value, convert
-    if (typeof token !== 'number') {
-      token = this.symbols_[token] || token;
-    }
-    return token;
+  setLexer(lexer) {
+    this.lexer = lexer;
   }
+
 
   //TODO: implement
   /*parseError:
