@@ -1,11 +1,4 @@
 export default class InputReader {
-
-  var stickyCompatible = RegExp.prototype.sticky !== undefined,
-    rules,
-    rule,
-    max,
-    i;
-
   constructor(input) {
     this.done = false;
     this.input = input;
@@ -22,7 +15,7 @@ export default class InputReader {
   }
 
   ch() {
-    var ch = this.input[0];
+    const ch = this.input[0];
     this.addMatch(ch);
     return ch;
   }
@@ -35,13 +28,13 @@ export default class InputReader {
   }
 
   substring(start, end) {
-    start = (start != 0 ? this.position + start : this.position);
-    end = (end != 0 ? start + end : this.length);
+    start = (start !== 0 ? this.position + start : this.position);
+    end = (end !== 0 ? start + end : this.length);
     return this.input.substring(start, end);
   }
 
   match(rule) {
-    var match,
+    let match,
       input = this.input;
 
     if ((match = input.match(rule)) !== null) {

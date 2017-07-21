@@ -26,7 +26,7 @@ function commonjsMain(args) {
     console.log('Usage: '+args[0]+' FILE');
     process.exit(1);
   }
-  let source = fs.readFileSync(path.normalize(args[1]), "utf8");
+  let source = fs.readFileSync(path.normalize(args[1]), 'utf8');
   return exports.parser.parse(source);
 }
 
