@@ -1,7 +1,7 @@
 import InputReader from './input-reader';
 
 /**
- * in input reader for parser/lexer, uses sticky behavior
+ * An input reader for parser/lexer, uses sticky behavior
  * @param {String} input
  */
 class StickyInputReader extends InputReader {
@@ -9,11 +9,9 @@ class StickyInputReader extends InputReader {
   constructor() {
     super();
 
-    let rules = lexer.rules,
-      max = rules.length,
-      i = 0;
+    let rules = lexer.rules;
 
-    for (; i < max; i++) {
+    for (let i = 0; i < rules.length; i++) {
       rule = rules[i];
       rules[i] = new RegExp(rule.source.substring(1), 'y');
     }
@@ -26,15 +24,18 @@ class StickyInputReader extends InputReader {
   }
 
   ch() {
-    var ch = this.input[this.position];
+    const ch = this.input[this.position];
     this.addMatch(ch);
     return ch;
   }
 
-  unCh(chLength) {
-    this.position -= chLength;
-    this.position = Math.max(0, this.position);
-    this.done = (this.position >= this.length);
+  match(rule) {
+    const match = rule.exec(this.input);
+    rule.lastIndex = this.position;
+    if (match !== null) {
+      return match;
+    }
+    return null;
   }
 
   substring(start, end) {
@@ -43,16 +44,13 @@ class StickyInputReader extends InputReader {
     return this.input.substring(start, end);
   }
 
-  match(rule) {
-    var match;
-    rule.lastIndex = this.position;
-    if ((match = rule.exec(this.input)) !== null) {
-      return match;
-    }
-    return null;
-  }
-
   toString() {
     return this.matches.join('');
+  }
+
+  unCh(chLength) {
+    this.position -= chLength;
+    this.position = Math.max(0, this.position);
+    this.done = (this.position >= this.length);
   }
 }
