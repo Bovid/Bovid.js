@@ -7,18 +7,18 @@ export default class LLGenerator extends Lookahead {
   }
 
   parseTable(productions) {
-    var table = {},
-        self = this;
+    let table = {};
+
     productions.forEach((production, i) => {
-      var row = table[production.symbol] || {};
-      var tokens = production.first;
-      if (self.nullable(production.handle)) {
-        this.union(tokens, self.nonterminals[production.symbol].follows);
+      let row = table[production.symbol] || {};
+      const tokens = production.first;
+      if (this.nullable(production.handle)) {
+        this.union(tokens, this.nonterminals[production.symbol].follows);
       }
       tokens.forEach((token) => {
         if (row[token]) {
           row[token].push(i);
-          self.conflicts++;
+          this.conflicts++;
         } else {
           row[token] = [i];
         }

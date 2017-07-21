@@ -1,7 +1,6 @@
 import Lookahead from './lookahead';
 
 export default class LALRGrammar extends Lookahead {
-  var nterms_ = {};
 
   constructor(originalGrammar) {
     this.originalGrammmar = originalGrammar;
