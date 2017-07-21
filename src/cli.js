@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-function getCommandlineOptions () {
+function getCommandlineOptions() {
   return require('nomnom')
     .script('bovid')
     .option('file', {
