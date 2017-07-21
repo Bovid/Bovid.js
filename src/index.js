@@ -1,7 +1,3 @@
-// Bovid, an LR(0), SLR(1), LARL(1), LR(1) Parser Generator, forked from Jison
-// Zachary Carter <zach@carter.name>
-// MIT X Licensed
-
 import fs from 'fs';
 import path from 'path';
 import { version } from '../package.json';
@@ -35,9 +31,8 @@ function commonjsMain(args) {
 }
 
 function generate(g, options) {
-  let opt = Object.assign({}, g.options, options)
-    , generator
-    ;
+  let opt = Object.assign({}, g.options, options),
+    generator;
 
   switch (opt.type) {
     case 'lr0':
