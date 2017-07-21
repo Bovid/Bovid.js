@@ -8,22 +8,22 @@ export default class LRGeneratorItem {
     this.markedSymbol = this.production.handle[this.dotPosition];
   }
 
-  remainingHandle() {
-    return this.production.handle.slice(this.dotPosition + 1);
-  }
-
   eq(e) {
     return e.id === this.id;
   }
 
   handleToString() {
-    var handle = this.production.handle.slice(0);
+    let handle = this.production.handle.slice(0);
     handle[this.dotPosition] = '.' + (handle[this.dotPosition] || '');
     return handle.join(' ');
   }
 
+  remainingHandle() {
+    return this.production.handle.slice(this.dotPosition + 1);
+  }
+
   toString() {
-    var temp = this.production.handle.slice(0);
+    let temp = this.production.handle.slice(0);
     temp[this.dotPosition] = '.' + (temp[this.dotPosition] || '');
     return this.production.symbol + " -> " + temp.join(' ') +
         (this.follows.length === 0 ? "" : " #lookaheads= " + this.follows.join(' '));
