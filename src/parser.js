@@ -1,3 +1,7 @@
+import ParseLocation from './parse-location';
+const TERROR = 2;
+const EOF = 1;
+
 export default class Parser {
   construct(dict) {
     this.table = dict.table;
@@ -6,26 +10,33 @@ export default class Parser {
     this.productions_ = dict.productions_;
     this.symbols_ = dict.symbols_;
     this.terminals_ = dict.terminals_;
+    this.stack = null;
+    this.tstack = null;
+    this.vstack = null;
+    this.lstack = null;
+    this.lexer = null;
+    this.yy = null;
+  }
+
+  setLexer(lexer) {
+    this.lexer = lexer;
   }
 
   parse(input) {
-    var stack = [0],
-        tstack = [], // token stack
-        vstack = [null], // semantic value stack
-        lstack = [], // location stack
+    var stack = this.stack = [0],
+        tstack = this.tstack = [], // token stack
+        vstack = this.vstack = [null], // semantic value stack
+        lstack = this.lstack = [], // location stack
         table = this.table,
         yytext = '',
         yylineno = 0,
         yyleng = 0,
-        recovering = 0,
-        TERROR = 2,
-        EOF = 1;
+        recovering = 0;
 
     var args = lstack.slice.call(arguments, 1);
 
     //this.reductionCount = this.shiftCount = 0;
-
-    var lexer = Object.create(this.lexer);
+    var lexer = this.lexer;
     var sharedState = {yy: {}};
     // copy state
     for (var k in this.yy) {
@@ -37,7 +48,7 @@ export default class Parser {
     lexer.setInput(input, sharedState.yy);
     sharedState.yy.lexer = lexer;
     sharedState.yy.parser = this;
-    if (typeof lexer.yylloc == 'undefined') {
+    if (typeof lexer.yylloc === 'undefined') {
       lexer.yylloc = {};
     }
     var yyloc = lexer.yylloc;
@@ -51,34 +62,18 @@ export default class Parser {
       this.parseError = Object.getPrototypeOf(this).parseError;
     }
 
-    function popStack(n) {
-      stack.length = stack.length - 2 * n;
-      vstack.length = vstack.length - n;
-      lstack.length = lstack.length - n;
-    }
-
     _token_stack:
-        function lex() {
-          var token;
-          token = lexer.lex() || EOF;
-          // if token isn't its numeric value, convert
-          if (typeof token !== 'number') {
-            token = this.symbols_[token] || token;
-          }
-          return token;
-        }
-
     var symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
     while (true) {
-      // retreive state number from top of stack
+      // retrieve state number from top of stack
       state = stack[stack.length - 1];
 
       // use default actions if available
       if (this.defaultActions[state]) {
         action = this.defaultActions[state];
       } else {
-        if (symbol === null || typeof symbol == 'undefined') {
-          symbol = lex();
+        if (symbol === null || typeof symbol === 'undefined') {
+          symbol = this.lex();
         }
         // read action for current state and first input
         action = table[state] && table[state][symbol];
@@ -90,30 +85,9 @@ export default class Parser {
             var error_rule_depth;
             var errStr = '';
 
-            // Return the rule stack depth where the nearest error rule can be found.
-            // Return FALSE when no error recovery rule was found.
-            function locateNearestErrorRecoveryRule(state) {
-              var stack_probe = stack.length - 1;
-              var depth = 0;
-
-              // try to recover from error
-              for (; ;) {
-                // check for error recovery rule in this state
-                if ((TERROR.toString()) in table[state]) {
-                  return depth;
-                }
-                if (state === 0 || stack_probe < 2) {
-                  return false; // No suitable error recovery rule available.
-                }
-                stack_probe -= 2; // popStack(1): [symbol, action]
-                state = stack[stack_probe];
-                ++depth;
-              }
-            }
-
             if (!recovering) {
               // first see if there's any chance at hitting an error recovery rule:
-              error_rule_depth = locateNearestErrorRecoveryRule(state);
+              error_rule_depth = this.locateNearestErrorRecoveryRule(state);
 
               // Report error
               expected = [];
@@ -126,7 +100,7 @@ export default class Parser {
                 errStr = 'Parse error on line ' + (yylineno + 1) + ":\n" + lexer.showPosition() + "\nExpecting " + expected.join(', ') + ", got '" + (this.terminals_[symbol] || symbol) + "'";
               } else {
                 errStr = 'Parse error on line ' + (yylineno + 1) + ": Unexpected " +
-                    (symbol == EOF ? "end of input" :
+                    (symbol === EOF ? "end of input" :
                         ("'" + (this.terminals_[symbol] || symbol) + "'"));
               }
               return this.parseError(errStr, {
@@ -138,11 +112,11 @@ export default class Parser {
                 recoverable: (error_rule_depth !== false)
               });
             } else if (preErrorSymbol !== EOF) {
-              error_rule_depth = locateNearestErrorRecoveryRule(state);
+              error_rule_depth = this.locateNearestErrorRecoveryRule(state);
             }
 
             // just recovered from another error
-            if (recovering == 3) {
+            if (recovering === 3) {
               if (symbol === EOF || preErrorSymbol === EOF) {
                 throw new Error(errStr || 'Parsing halted while starting to recover from another error.');
               }
@@ -152,16 +126,16 @@ export default class Parser {
               yytext = lexer.yytext;
               yylineno = lexer.yylineno;
               yyloc = lexer.yylloc;
-              symbol = lex();
+              symbol = this.lex();
             }
 
             // try to recover from error
             if (error_rule_depth === false) {
               throw new Error(errStr || 'Parsing halted. No suitable error recovery rule available.');
             }
-            popStack(error_rule_depth);
+            this.popStack(error_rule_depth);
 
-            preErrorSymbol = (symbol == TERROR ? null : symbol); // save the lookahead token
+            preErrorSymbol = (symbol === TERROR ? null : symbol); // save the lookahead token
             symbol = TERROR;     // insert generic error symbol as new lookahead
             state = stack[stack.length - 1];
             action = table[state] && table[state][TERROR];
@@ -206,12 +180,12 @@ export default class Parser {
           // perform semantic action
           yyval.$ = vstack[vstack.length - len]; // default to $$ = $1
           // default location, uses first token for firsts, last for lasts
-          yyval._$ = {
-            first_line: lstack[lstack.length - (len || 1)].first_line,
-            last_line: lstack[lstack.length - 1].last_line,
-            first_column: lstack[lstack.length - (len || 1)].first_column,
-            last_column: lstack[lstack.length - 1].last_column
-          };
+          yyval._$ = new ParseLocation(
+            lstack[lstack.length - (len || 1)].first_line,
+            lstack[lstack.length - 1].last_line,
+            lstack[lstack.length - (len || 1)].first_column,
+            lstack[lstack.length - 1].last_column
+          );
           if (ranges) {
             yyval._$.range = [lstack[lstack.length - (len || 1)].range[0], lstack[lstack.length - 1].range[1]];
           }
@@ -244,6 +218,44 @@ export default class Parser {
     }
 
     return true;
+  }
+
+  // Return the rule stack depth where the nearest error rule can be found.
+// Return FALSE when no error recovery rule was found.
+  locateNearestErrorRecoveryRule(state) {
+    var stack = this.stack;
+    var stack_probe = stack.length - 1;
+    var depth = 0;
+
+    // try to recover from error
+    for (; ;) {
+      // check for error recovery rule in this state
+      if ((TERROR.toString()) in this.table[state]) {
+        return depth;
+      }
+      if (state === 0 || stack_probe < 2) {
+        return false; // No suitable error recovery rule available.
+      }
+      stack_probe -= 2; // popStack(1): [symbol, action]
+      state = stack[stack_probe];
+      ++depth;
+    }
+  }
+
+  popStack(n) {
+    this.stack.length = this.stack.length - 2 * n;
+    this.vstack.length = this.vstack.length - n;
+    this.lstack.length = this.lstack.length - n;
+  }
+
+  lex() {
+    var token;
+    token = this.lexer.lex() || EOF;
+    // if token isn't its numeric value, convert
+    if (typeof token !== 'number') {
+      token = this.symbols_[token] || token;
+    }
+    return token;
   }
 
   //TODO: implement

@@ -1,17 +1,13 @@
-// Encodes Jison formatted grammars as JSON
 import fs from 'fs';
 import path from 'path';
+import bnfParser from '../ebnf/parser';
+import lexParser from '../lex/parser';
 
-var fs = require('fs');
-var path = require('path');
-var bnfParser = require('ebnf-parser');
-var lexParser = require('lex-parser');
+export default function toJson(argv) {
+  if(argv.length === 1) return;
 
-exports.main = function (argv) {
-  if(argv.length == 1) return;
-
-  var args = argv.slice(1);
-  var bnf, lex;
+  const args = argv.slice(1);
+  let bnf, lex;
 
   console.log(args);
 
@@ -22,20 +18,18 @@ exports.main = function (argv) {
       lex = fs.readFileSync(path.resolve(args[1]), 'utf8');
     }
 
-    console.log(processGrammar(bnf, lex));
+    console.log(convert(bnf, lex));
   } else {
-    var read = false;
+    let read = false;
     input(function (bnf) {
       read = true;
-      console.log(processGrammar(bnf));
+      console.log(convert(bnf));
     });
   }
 };
 
-exports.convert = processGrammar;
-
-function processGrammar (rawGrammar, lex) {
-  var grammar = bnfParser.parse(rawGrammar);
+function convert(rawGrammar, lex) {
+  const grammar = bnfParser.parse(rawGrammar);
   if (lex) grammar.lex = lexParser.parse(lex);
 
   // trick to reposition `bnf` after `lex` in serialized JSON
@@ -44,7 +38,7 @@ function processGrammar (rawGrammar, lex) {
   return JSON.stringify(grammar, null, '  ');
 }
 
-function input (cb) {
+function input(cb) {
   var stdin = process.openStdin(),
     data = '';
 
@@ -55,7 +49,8 @@ function input (cb) {
   stdin.addListener('end', function () {
     cb(data);
   });
-};
+}
 
-if (require.main === module)
-  exports.main(process.argv.slice(1));
+if (require.main === module) {
+  toJson(process.argv.slice(1));
+}
