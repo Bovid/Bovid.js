@@ -2,34 +2,30 @@ import LRGenerator from 'lr-generator';
 import LRGeneratorItemSet from './lr-generator-item-set';
 
 export default class LR1Generator extends LRGenerator {
-  lookAheads(state, item) {
-    return item.follows;
-  }
 
-  closureOperation(itemSet /*, closureSet*/) {
-    var closureSet = new LRGeneratorItemSet();
-    var self = this;
+  closureOperation(itemSet /*, closureSet*/ ) {
+    let closureSet = new LRGeneratorItemSet();
 
-    var _set = itemSet,
-        itemQueue, syms = {};
+    let _set = itemSet,
+      itemQueue;
 
     do {
       itemQueue = [];
       closureSet.concat(set);
       _set.forEach((item) => {
-        var symbol = item.markedSymbol;
-        var b, r;
+        const symbol = item.markedSymbol;
+        let b, r;
 
         // if token is a nonterminal, recursively add closures
-        if (symbol && self.nonterminals[symbol]) {
+        if (symbol && this.nonterminals[symbol]) {
           r = item.remainingHandle();
-          b = self.first(item.remainingHandle());
-          if (b.length === 0 || item.production.nullable || self.nullable(r)) {
+          b = this.first(item.remainingHandle());
+          if (b.length === 0 || item.production.nullable || this.nullable(r)) {
             b = b.concat(item.follows);
           }
-          self.nonterminals[symbol].productions.forEach((production) => {
-            var newItem = new this.Item(production, 0, b);
-            if(!closureSet.contains(newItem) && !itemQueue.contains(newItem)) {
+          this.nonterminals[symbol].productions.forEach((production) => {
+            const newItem = new this.Item(production, 0, b);
+            if (!closureSet.contains(newItem) && !itemQueue.contains(newItem)) {
               itemQueue.push(newItem);
             }
           });
@@ -43,5 +39,9 @@ export default class LR1Generator extends LRGenerator {
     } while (!itemQueue.isEmpty());
 
     return closureSet;
+  }
+
+  lookAheads(state, item) {
+    return item.follows;
   }
 }
