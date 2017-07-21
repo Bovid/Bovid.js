@@ -27,10 +27,10 @@ if (typeof console === 'object' && typeof console.log === 'function') {
 // default main method for generated commonjs modules
 function commonjsMain(args) {
   if (!args[1]) {
-    console.log('Usage: ' + args[0] + ' FILE');
+    console.log(`Usage: ${args[0]} FILE`);
     process.exit(1);
   }
-  let source = fs.readFileSync(path.normalize(args[1]), "utf8");
+  let source = fs.readFileSync(path.normalize(args[1]), 'utf8');
   return exports.parser.parse(source);
 }
 
