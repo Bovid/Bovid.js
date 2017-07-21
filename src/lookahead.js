@@ -10,42 +10,41 @@ export default class LookAhead {
   followSets() {
     if (typeof this.debugCB === 'function') this.debugCB('Computing Follow sets.');
 
-    var productions = this.productions,
-        nonterminals = this.nonterminals,
-        cont = true;
+    let cont = true;
 
     // loop until no further changes have been made
     while(cont) {
       cont = false;
 
-      productions.forEach((production, k) => {
-        //self.trace(production.symbol,nonterminals[production.symbol].follows);
+      this.productions.forEach((production, k) => {
+        //this.trace(production.symbol,nonTerminals[production.symbol].follows);
         // q is used in Simple LALR algorithm determine follows in context
-        var q;
-        var ctx = !!this.go_;
+        let q;
+        const ctx = !!this.go_;
 
-        var set = [],oldcount;
-        for (var i=0,t;t=production.handle[i];++i) {
-          if (!nonterminals[t]) continue;
+        let set = [],
+          oldcount;
+        for (let i = 0, t; t = production.handle[i]; ++i) {
+          if (!this.nonTerminals[t]) continue;
 
-          // for Simple LALR algorithm, self.go_ checks if
-          if (ctx)
+          // for Simple LALR algorithm, this.go_ checks if
+          if (ctx) {
             q = this.go_(production.symbol, production.handle.slice(0, i));
-          var bool = !ctx || q === parseInt(self.nterms_[t], 10);
+          }
+          const bool = !ctx || q === parseInt(this.nonTerminals_[t], 10);
 
           if (i === production.handle.length+1 && bool) {
-            set = nonterminals[production.symbol].follows;
+            set = this.nonTerminals[production.symbol].follows;
           } else {
-            var part = production.handle.slice(i+1);
-
+            const part = production.handle.slice(i+1);
             set = this.first(part);
             if (this.nullable(part) && bool) {
-              set.push.apply(set, nonterminals[production.symbol].follows);
+              set.push.apply(set, this.nonTerminals[production.symbol].follows);
             }
           }
-          oldcount = nonterminals[t].follows.length;
-          this.union(nonterminals[t].follows, set);
-          if (oldcount !== nonterminals[t].follows.length) {
+          oldcount = this.nonTerminals[t].follows.length;
+          this.union(this.nonTerminals[t].follows, set);
+          if (oldcount !== this.nonTerminals[t].follows.length) {
             cont = true;
           }
         }
@@ -53,9 +52,9 @@ export default class LookAhead {
     }
 
     if (typeof this.debugCB === 'function') {
-      var i, nt;
-      for (i in this.nonterminals) if (this.nonterminals.hasOwnProperty(i)) {
-        nt = this.nonterminals[i];
+      let nt;
+      for (let i in this.nonTerminals) if (this.nonTerminals.hasOwnProperty(i)) {
+        nt = this.nonTerminals[i];
         this.debugCB(nt, '\n');
       }
     }
@@ -68,25 +67,24 @@ export default class LookAhead {
       return [];
       // RHS
     } else if (symbol instanceof Array) {
-      var firsts = [];
-      for (var i=0,t;t=symbol[i];++i) {
-        if (!this.nonterminals[t]) {
+      const firsts = [];
+      for (let i = 0, t; t = symbol[i]; ++i) {
+        if (!this.nonTerminals[t]) {
           if (firsts.indexOf(t) === -1)
             firsts.push(t);
         } else {
-          firsts
-              .concat(this.nonterminals[t].first);
+          firsts.concat(this.nonTerminals[t].first);
         }
         if (!this.nullable(t))
           break;
       }
       return firsts;
       // terminal
-    } else if (!this.nonterminals[symbol]) {
+    } else if (!this.nonTerminals[symbol]) {
       return [symbol];
       // nonterminal
     } else {
-      return this.nonterminals[symbol].first;
+      return this.nonTerminals[symbol].first;
     }
   }
 
@@ -94,10 +92,7 @@ export default class LookAhead {
   firstSets() {
     if (typeof this.debugCB === 'function') this.debugCB('Computing First sets.');
 
-    var productions = this.productions,
-        nonterminals = this.nonterminals,
-        self = this,
-        cont = true,
+    let cont = true,
         symbol,
         firsts;
 
@@ -105,22 +100,22 @@ export default class LookAhead {
     while(cont) {
       cont = false;
 
-      productions.forEach((production, k) => {
-        var firsts = self.first(production.handle);
+      this.productions.forEach((production, k) => {
+        const firsts = this.first(production.handle);
         if (firsts.length !== production.first.length) {
           production.first = firsts;
           cont=true;
         }
       });
 
-      for (symbol in nonterminals) if (nonterminals.hasOwnProperty(symbol)) {
+      for (symbol in nonTerminals) if (nonTerminals.hasOwnProperty(symbol)) {
         firsts = [];
-        nonterminals[symbol].productions.forEach((production) => {
+        nonTerminals[symbol].productions.forEach((production) => {
           this.union(firsts, production.first);
         });
-        if (firsts.length !== nonterminals[symbol].first.length) {
-          nonterminals[symbol].first = firsts;
-          cont=true;
+        if (firsts.length !== this.nonTerminals[symbol].first.length) {
+          this.nonTerminals[symbol].first = firsts;
+          cont = true;
         }
       }
     }
@@ -130,9 +125,8 @@ export default class LookAhead {
   nullableSets() {
     if (this.debugCB) this.debugCB('Computing Nullable sets.');
 
-    var firsts = this.firsts = {},
-        nonterminals = this.nonterminals,
-        self = this,
+    const nonTerminals = this.nonTerminals;
+    let firsts = this.firsts = {},
         cont = true;
 
     // loop until no further changes have been made
@@ -142,8 +136,8 @@ export default class LookAhead {
       // check if each production is nullable
       this.productions.forEach((production, k) => {
         if (!production.nullable) {
-          for (var i=0,n=0,t;t=production.handle[i];++i) {
-            if (self.nullable(t)) n++;
+          for (let i = 0, n = 0, t; t = production.handle[i]; ++i) {
+            if (this.nullable(t)) n++;
           }
           if (n===i) { // production is nullable if all tokens are nullable
             production.nullable = cont = true;
@@ -152,11 +146,12 @@ export default class LookAhead {
       });
 
       //check if each symbol is nullable
-      for (var symbol in nonterminals) if (nonterminals.hasOwnProperty(symbol)) {
+      for (let symbol in nonTerminals) if (nonTerminals.hasOwnProperty(symbol)) {
         if (!this.nullable(symbol)) {
-          for (var i=0,production;production=nonterminals[symbol].productions.item(i);i++) {
-            if (production.nullable)
-              nonterminals[symbol].nullable = cont = true;
+          for (let i = 0,production; production = nonTerminals[symbol].productions.item(i); i++) {
+            if (production.nullable) {
+              nonTerminals[symbol].nullable = cont = true;
+            }
           }
         }
       }
@@ -170,17 +165,17 @@ export default class LookAhead {
       return true;
       // RHS
     } else if (symbol instanceof Array) {
-      for (var i=0,t;t=symbol[i];++i) {
+      for (let i = 0, t; t = symbol[i]; ++i) {
         if (!this.nullable(t))
           return false;
       }
       return true;
       // terminal
-    } else if (!this.nonterminals[symbol]) {
+    } else if (!this.nonTerminals[symbol]) {
       return false;
       // nonterminal
     } else {
-      return this.nonterminals[symbol].nullable;
+      return this.nonTerminals[symbol].nullable;
     }
   }
 

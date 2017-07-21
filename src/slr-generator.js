@@ -1,7 +1,7 @@
 import LRLookaheadGenerator from './lr-lookahead-generator';
 
 export default class SLRGenerator extends LRLookaheadGenerator {
-  lookaheads(state, item) {
-    return this.nonterminals[item.production.symbol].follows;
+  lookAheads(state, item) {
+    return this.nonTerminals[item.production.symbol].follows;
   }
 }

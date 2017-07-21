@@ -1,18 +1,19 @@
 import LRGenerator from './lr-generator';
-import LALRGrammer from './lalr-grammar';
+import LALRGrammar from './lalr-grammar';
 import Production from './production';
+import NonTerminal from './non-terminal';
 
 export default class LALRGenerator extends LRGenerator {
   constructor(grammar, options) {
     super();
     options = options || {};
     this.states = this.canonicalCollection();
-    this.terms_ = {};
-    var newg = this.newg = new LALRGrammar(this);
+    this.terminols_ = {};
+    const newg = this.newg = new LALRGrammar(this);
     this.inadequateStates = [];
 
-    // if true, only lookaheads in inadequate states are computed (faster, larger table)
-    // if false, lookaheads for all reductions will be computed (slower, smaller table)
+    // if true, only lookAheads in inadequate states are computed (faster, larger table)
+    // if false, lookAheads for all reductions will be computed (slower, smaller table)
     this.onDemandLookahead = options.onDemandLookahead || false;
 
     this.buildNewGrammar();
@@ -28,94 +29,92 @@ export default class LALRGenerator extends LRGenerator {
   }
 
   go(p, w) {
-    var q = parseInt(p, 10);
-    for (var i=0;i<w.length;i++) {
+    let q = parseInt(p, 10);
+    for (let i = 0; i < w.length; i++) {
       q = this.states.item(q).edges[w[i]] || q;
     }
     return q;
   }
 
   goPath(p, w) {
-    var q = parseInt(p, 10),t,
-        path = [];
-    for (var i=0;i<w.length;i++) {
-      t = w[i] ? q+":"+w[i] : '';
-      if (t) this.newg.nterms_[t] = q;
+    let q = parseInt(p, 10),
+      t,
+      path = [];
+    for (let i = 0; i < w.length; i++) {
+      t = w[i] ? `${q}:${w[i]}` : '';
+      if (t) this.newg.nonTerminals_[t] = q;
       path.push(t);
       q = this.states.item(q).edges[w[i]] || q;
       this.terms_[t] = w[i];
     }
-    return {path: path, endState: q};
+    return { path: path, endState: q };
   }
 
-  // every disjoint reduction of a nonterminal becomes a produciton in G'
+  // every disjoint reduction of nonTerminals becomes a production in G'
   buildNewGrammar() {
     if (typeof this.debugCB === 'function') {
-      this.debugCB(this.states.size()+" states.");
-      this.debugCB("Building lookahead grammar.");
+      this.debugCB(this.states.size()+' states.');
+      this.debugCB('Building lookahead grammar.');
     }
-
-    var self = this,
-        newg = this.newg;
-
+    const newg = this.newg;
     this.states.forEach((state, i) => {
       state.forEach((item) => {
         if (item.dotPosition === 0) {
           // new symbols are a combination of state and transition symbol
-          var symbol = i+":"+item.production.symbol;
-          self.terms_[symbol] = item.production.symbol;
-          newg.nterms_[symbol] = i;
-          if (!newg.nonterminals[symbol]) {
-            newg.nonterminals[symbol] = new NonTerminal(symbol);
+          const symbol = `${ i }:${ item.production.symbol }`;
+          this.terminols_[symbol] = item.production.symbol;
+          newg.nonTerminals_[symbol] = i;
+          if (!newg.nonTerminals[symbol]) {
+            newg.nonTerminals[symbol] = new NonTerminal(symbol);
           }
-          var pathInfo = self.goPath(i, item.production.handle);
-          var p = new Production(symbol, pathInfo.path, newg.productions.length);
+          const pathInfo = this.goPath(i, item.production.handle);
+          const p = new Production(symbol, pathInfo.path, newg.productions.length);
           newg.productions.push(p);
-          newg.nonterminals[symbol].productions.push(p);
+          newg.nonTerminals[symbol].productions.push(p);
 
           // store the transition that get's 'backed up to' after reduction on path
-          var handle = item.production.handle.join(' ');
-          var goes = self.states.item(pathInfo.endState).goes;
-          if (!goes[handle])
+          const handle = item.production.handle.join(' ');
+          const goes = this.states.item(pathInfo.endState).goes;
+          if (!goes[handle]) {
             goes[handle] = [];
+          }
           goes[handle].push(symbol);
 
           //self.trace('new production:',p);
         }
       });
-      if (state.inadequate)
-        self.inadequateStates.push(i);
+      if (state.inadequate) {
+        this.inadequateStates.push(i);
+      }
     });
   }
 
   unionLookAheads() {
     if (typeof this.debugCB === 'function') {
-      this.debugCB('Computing lookaheads.');
+      this.debugCB('Computing lookAheads.');
     }
 
-    var self = this,
-        newg = this.newg,
-        states = !!this.onDemandLookahead ? this.inadequateStates : this.states;
+    const newg = this.newg,
+      states = !!this.onDemandLookahead ? this.inadequateStates : this.states;
 
     states.forEach((i) => {
-      var state = typeof i === 'number' ? self.states.item(i) : i,
-          follows = [];
+      const state = typeof i === 'number' ? this.states.item(i) : i;
       if (state.reductions.length)
         state.reductions.forEach((item) => {
-          var follows = {};
-          for (var k=0;k<item.follows.length;k++) {
+          const follows = {};
+          for (let k = 0; k < item.follows.length; k++) {
             follows[item.follows[k]] = true;
           }
           state.goes[item.production.handle.join(' ')].forEach((symbol) => {
-            newg.nonterminals[symbol].follows.forEach((symbol) => {
-              var terminal = self.terms_[symbol];
+            newg.nonTerminals[symbol].follows.forEach((symbol) => {
+              const terminal = this.terms_[symbol];
               if (!follows[terminal]) {
                 follows[terminal]=true;
                 item.follows.push(terminal);
               }
             });
           });
-          //self.trace('unioned item', item);
+          //this.trace('unioned item', item);
         });
     });
   }

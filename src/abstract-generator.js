@@ -21,7 +21,7 @@ export default class AbstractGenerator {
     this.parseParams = grammar.parseParams;
     this.yy = {}; // accessed as yy free variable in the parser/lexer actions
     this.actionGroups = null;
-    this.nonterminals = null;
+    this.nonTerminals = null;
     this.symbolId = null;
     this.symbols = null;
     this.symbols_ = null;
@@ -56,7 +56,7 @@ export default class AbstractGenerator {
     let bnf = grammar.bnf,
       tokens = grammar.tokens;
 
-    this.nonterminals = {};
+    this.nonTerminals = {};
 
     if (!grammar.bnf && grammar.ebnf) {
       bnf = grammar.bnf = ebnfParser.transform(grammar.ebnf);
@@ -96,7 +96,7 @@ export default class AbstractGenerator {
     }
     // use specified start symbol, or default to first user defined production
     this.startSymbol = grammar.start || grammar.startSymbol || this.productions[0].symbol;
-    if (!this.nonterminals[this.startSymbol]) {
+    if (!this.nonTerminals[this.startSymbol]) {
       throw new Error('Grammar error: startSymbol must be a non-terminal found in your grammar.');
     }
     this.EOF = '$end';
@@ -111,11 +111,11 @@ export default class AbstractGenerator {
     this.symbols_[this.EOF] = 1;
     this.terminals.unshift(this.EOF);
 
-    this.nonterminals.$accept = new NonTerminal('$accept');
-    this.nonterminals.$accept.productions.push(acceptProduction);
+    this.nonTerminals.$accept = new NonTerminal('$accept');
+    this.nonTerminals.$accept.productions.push(acceptProduction);
 
     // add follow $ to start symbol
-    this.nonterminals[this.startSymbol].follows.push(this.EOF);
+    this.nonTerminals[this.startSymbol].follows.push(this.EOF);
 
     if(typeof this.debugCB === 'function') {
       this.symbols.forEach((sym, i) => {
@@ -158,7 +158,7 @@ export default class AbstractGenerator {
       if (!bnf.hasOwnProperty(symbol)) continue;
 
       this.addSymbol(symbol);
-      this.nonterminals[symbol] = new NonTerminal(symbol);
+      this.nonTerminals[symbol] = new NonTerminal(symbol);
 
       if (typeof bnf[symbol] === 'string') {
         prods = bnf[symbol].split(/\s*\|\s*/g);
@@ -179,7 +179,7 @@ export default class AbstractGenerator {
     this.terminals_ = {};
     for (id in symbols_) if (symbols_.hasOwnProperty(id)) {
       sym = symbols_[id];
-      if (!this.nonterminals[sym]) {
+      if (!this.nonTerminals[sym]) {
         this.terminals.push(sym);
         this.terminals_[id] = sym;
       }
@@ -307,7 +307,7 @@ export default class AbstractGenerator {
     if (r.precedence === 0) {
       // set precedence
       for (i=r.handle.length-1; i>=0; i--) {
-        if (!(r.handle[i] in this.nonterminals) && r.handle[i] in this.operators) {
+        if (!(r.handle[i] in this.nonTerminals) && r.handle[i] in this.operators) {
           r.precedence = this.operators[r.handle[i]].precedence;
         }
       }
@@ -315,7 +315,7 @@ export default class AbstractGenerator {
 
     this.productions.push(r);
     this.productions_.push([this.symbols_[r.symbol], r.handle[0] === '' ? 0 : r.handle.length]);
-    this.nonterminals[symbol].productions.push(r);
+    this.nonTerminals[symbol].productions.push(r);
   }
 
   addSymbol(s) {

@@ -26,6 +26,6 @@ export default class LRGeneratorItem {
     var temp = this.production.handle.slice(0);
     temp[this.dotPosition] = '.' + (temp[this.dotPosition] || '');
     return this.production.symbol + " -> " + temp.join(' ') +
-        (this.follows.length === 0 ? "" : " #lookaheads= " + this.follows.join(' '));
+        (this.follows.length === 0 ? "" : " #lookAheads= " + this.follows.join(' '));
   }
 }

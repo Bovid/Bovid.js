@@ -79,9 +79,9 @@ export default class LRGenerator extends Lookahead {
         var symbol = item.markedSymbol;
 
         // if token is a non-terminal, recursively add closures
-        if (symbol && this.nonterminals[symbol]) {
+        if (symbol && this.nonTerminals[symbol]) {
           if(!syms[symbol]) {
-            this.nonterminals[symbol].productions.forEach((production) => {
+            this.nonTerminals[symbol].productions.forEach((production) => {
               var newItem = new this.Item(production, 0);
               if(!closureSet.contains(newItem))
                 itemQueue.push(newItem);
@@ -168,7 +168,7 @@ export default class LRGenerator extends Lookahead {
     }
 
     var states = [],
-        nonterminals = this.nonterminals,
+        nonTerminals = this.nonTerminals,
         operators = this.operators,
         conflictedStates = {}, // array of [state, token] tuples
         s = 1, // shift
@@ -186,7 +186,7 @@ export default class LRGenerator extends Lookahead {
           // find shift and goto actions
           if (item.markedSymbol == stackSymbol) {
             var gotoState = itemSet.edges[stackSymbol];
-            if (nonterminals[stackSymbol]) {
+            if (nonTerminals[stackSymbol]) {
               // store state to go to after a reduce
               //this.trace(k, stackSymbol, 'g'+gotoState);
               state[this.symbols_[stackSymbol]] = gotoState;
@@ -207,12 +207,12 @@ export default class LRGenerator extends Lookahead {
         }
       });
 
-      var allterms = this.lookaheads ? false : this.terminals;
+      var allterms = this.lookAheads ? false : this.terminals;
 
       // set reductions and resolve potential conflicts
       itemSet.reductions.forEach((item, j) => {
         // if parser uses lookahead, only enumerate those terminals
-        var terminals = allterms || this.lookaheads(itemSet, item);
+        var terminals = allterms || this.lookAheads(itemSet, item);
 
         terminals.forEach((stackSymbol) => {
           action = state[this.symbols_[stackSymbol]];
