@@ -1,4 +1,18 @@
-export default class LRGeneratorItemSet {
+import { Production } from './production';
+
+export interface IHash {
+  [id: string]: boolean;
+}
+
+export class LRGeneratorItemSet {
+  reductions: number[];
+  goes: any;
+  edges: any;
+  shifts: boolean;
+  inadequate: boolean;
+  hash_: IHash;
+  _items: Production[];
+
   constructor() {
     this.reductions = [];
     this.goes = {};
@@ -7,7 +21,7 @@ export default class LRGeneratorItemSet {
     this.inadequate = false;
     this.hash_ = {};
     for (var i = this._items.length - 1; i >= 0; i--) {
-      this.hash_[this._items[i].id] = true; //i;
+      this.hash_[this._items[i].id.toString()] = true; //i;
     }
   }
 

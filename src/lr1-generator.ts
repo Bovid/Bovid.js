@@ -1,7 +1,7 @@
-import LRGenerator from 'lr-generator';
-import LRGeneratorItemSet from './lr-generator-item-set';
+import { LRGenerator } from './lr-generator';
+import { LRGeneratorItemSet } from './lr-generator-item-set';
 
-export default class LR1Generator extends LRGenerator {
+export class LR1Generator extends LRGenerator {
 
   closureOperation(itemSet /*, closureSet*/ ) {
     let closureSet = new LRGeneratorItemSet();

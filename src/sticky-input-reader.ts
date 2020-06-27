@@ -1,16 +1,13 @@
-import InputReader from './input-reader';
+import { InputReader } from './input-reader';
 
 /**
  * An input reader for parser/lexer, uses sticky behavior
- * @param {String} input
  */
-class StickyInputReader extends InputReader {
-
-  constructor() {
-    super();
+export class StickyInputReader extends InputReader {
+  constructor(input: string) {
+    super(input);
 
     let rules = lexer.rules;
-
     for (let i = 0; i < rules.length; i++) {
       rule = rules[i];
       rules[i] = new RegExp(rule.source.substring(1), 'y');

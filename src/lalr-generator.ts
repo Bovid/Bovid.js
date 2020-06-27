@@ -1,9 +1,9 @@
-import LRGenerator from './lr-generator';
-import LALRGrammar from './lalr-grammar';
-import Production from './production';
-import NonTerminal from './non-terminal';
+import { LRGenerator } from './lr-generator';
+import { LALRGrammar } from './lalr-grammar';
+import { Production } from './production';
+import { NonTerminal } from './non-terminal';
 
-export default class LALRGenerator extends LRGenerator {
+export class LALRGenerator extends LRGenerator {
   constructor(grammar, options) {
     super();
     options = options || {};

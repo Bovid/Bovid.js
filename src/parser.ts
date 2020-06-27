@@ -2,8 +2,62 @@ import ParseLocation from './parse-location';
 const TERROR = 2;
 const EOF = 1;
 
+interface IDictionary {
+  table: number[][];
+  defaultActions: number[][];
+  performAction: () => void;
+  productions_: number[][];
+  symbols_: number[];
+  terminals_: number[];
+}
+
+interface IYY {
+  lexer: any;
+  parser: Parser;
+  parseError?: string;
+}
+
+interface IParseError {
+  (error: string, hash: IParseHash): void;
+}
+
+interface IYYLoc {
+  first_line: number;
+  first_column: number;
+  last_line: number;
+  last_column: number;
+}
+
+interface IParseHash {
+  text: string;
+  token: number[][];
+  line: number;
+  loc: IYYLoc;
+  expected: number[];
+  recoverable: boolean;
+}
+
+interface IYYVal {
+  _$?: ParseLocation;
+  $?: number[];
+}
+
 export default class Parser {
-  constructor(dict) {
+  table: number[][];
+  stack: number[];
+  defaultActions: number[][];
+  performAction: () => any;
+  productions_: number[][];
+  symbols_: number[];
+  terminals_: number[];
+  tstack: number[];
+  vstack: (number | null)[];
+  lstack: number[];
+  lexer: any;
+  yy: IYY;
+  parseError: string | IParseError;
+
+  constructor(dict: IDictionary) {
     this.table = dict.table;
     this.defaultActions = dict.defaultActions;
     this.performAction = dict.performAction;
@@ -30,7 +84,7 @@ export default class Parser {
 
   // Return the rule stack depth where the nearest error rule can be found.
   // Return FALSE when no error recovery rule was found.
-  locateNearestErrorRecoveryRule(state) {
+  locateNearestErrorRecoveryRule(state: number) {
     const stack = this.stack;
     let stack_probe = stack.length - 1;
     let depth = 0;
@@ -66,7 +120,9 @@ export default class Parser {
 
     //this.reductionCount = this.shiftCount = 0;
     const lexer = this.lexer;
-    let sharedState = {yy: {}};
+    let sharedState = {
+      yy: {} as IYY
+    };
     // copy state
     for (let k in this.yy) {
       if (Object.prototype.hasOwnProperty.call(this.yy, k)) {
@@ -93,8 +149,8 @@ export default class Parser {
       this.parseError = Object.getPrototypeOf(this).parseError;
     }
 
-    _token_stack:
-    let symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
+    // _token_stack:
+    let symbol, preErrorSymbol, state, action, a, r, yyval: IYYVal = {}, p, len, newState, expected;
     while (true) {
       // retrieve state number from top of stack
       state = stack[stack.length - 1];
@@ -134,7 +190,7 @@ export default class Parser {
                     (symbol === EOF ? "end of input" :
                         ("'" + (this.terminals_[symbol] || symbol) + "'"));
               }
-              return this.parseError(errStr, {
+              return (this.parseError as IParseError)(errStr, {
                 text: lexer.match,
                 token: this.terminals_[symbol] || symbol,
                 line: lexer.yylineno,

@@ -1,13 +1,16 @@
 import JSONSelect from 'JSONSelect';
 import esprima from 'esprima';
 import escodegen from 'escodegen';
-import Lookahead from './lookahead';
-import LRGeneratorItem from './lr-generator-item';
-import LRGeneratorItemSet from './lr-generator-item-set';
 
-export default class LRGenerator extends Lookahead {
-  var NONASSOC = 0;
-  var lrGeneratorDebug = {
+import { LookAhead } from './lookahead';
+import { LRGeneratorItem } from './lr-generator-item';
+import { LRGeneratorItemSet } from './lr-generator-item-set';
+
+export class LRGenerator extends LookAhead {
+  NONASSOC = 0;
+  DEBUG = false;
+
+  lrGeneratorDebug = {
     beforeparseTable: function () {
 
     },
@@ -33,7 +36,7 @@ export default class LRGenerator extends Lookahead {
 
   // Function that extends an object with the given value for all given keys
   // e.g., o([1, 3, 4], [6, 7], { x: 1, y: 2 }) = { 1: [6, 7]; 3: [6, 7], 4: [6, 7], x: 1, y: 2 }
-  var createObjectCode = 'o=function(k,v,o,l){' +
+  createObjectCode = 'o=function(k,v,o,l){' +
       'for(o=o||{},l=k.length;l--;o[k[l]]=v);' +
       'return o}';
 
@@ -67,22 +70,22 @@ export default class LRGenerator extends Lookahead {
   }
 
   closureOperation(itemSet /*, closureSet*/) {
-    var closureSet = LRGeneratorItemSet(),
-      _set = itemSet,
-      itemQueue,
+    const closureSet = new LRGeneratorItemSet(),
       syms = {};
+
+    let itemQueue, _set = itemSet;
 
     do {
       itemQueue = [];
       closureSet.concat(_set);
       _set.forEach((item) => {
-        var symbol = item.markedSymbol;
+        const symbol = item.markedSymbol;
 
         // if token is a non-terminal, recursively add closures
         if (symbol && this.nonTerminals[symbol]) {
           if(!syms[symbol]) {
             this.nonTerminals[symbol].productions.forEach((production) => {
-              var newItem = new this.Item(production, 0);
+              const newItem = new this.Item(production, 0);
               if(!closureSet.contains(newItem))
                 itemQueue.push(newItem);
             });
@@ -607,9 +610,9 @@ export default class LRGenerator extends Lookahead {
             }
           }
         }
-        keyValues = keyValues.length ? ',{' + keyValues.join(',') + '}' : '';
+        const keyValuesString = keyValues.length ? ',{' + keyValues.join(',') + '}' : '';
         // Create the function call `o(keys, value, remainder)`
-        object = 'o([' + keys[frequentValue].join(',') + '],' + frequentValue + keyValues + ')';
+        object = 'o([' + keys[frequentValue].join(',') + '],' + frequentValue + keyValuesString + ')';
       }
       return object;
     });
@@ -647,12 +650,12 @@ export default class LRGenerator extends Lookahead {
     };
   }
 
-  var nextVariableId = 0;
-  var variableTokens = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$';
-  var variableTokensLength = variableTokens.length;
+  nextVariableId = 0;
+  variableTokens = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$';
+  variableTokensLength = this.variableTokens.length;
   // Creates a variable with a unique name
   createVariable() {
-    var id = nextVariableId++;
+    var id = this.nextVariableId++;
     var name = '$V';
 
     do {

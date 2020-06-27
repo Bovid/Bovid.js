@@ -1,5 +1,14 @@
-export default class LRGeneratorItem {
-  constructor(production, dot, f, predecessor) {
+import { Production } from './production';
+
+export class LRGeneratorItem {
+  production: Production;
+  id: string | number;
+  dotPosition: number;
+  follows: number[];
+  predecessor: number[];
+  markedSymbol: string;
+
+  constructor(production: Production, dot: number, f: number[], predecessor?) {
     this.production = production;
     this.dotPosition = dot || 0;
     this.follows = f || [];

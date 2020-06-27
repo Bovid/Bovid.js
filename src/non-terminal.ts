@@ -1,5 +1,13 @@
-export default class NonTerminal {
-  constructor(symbol) {
+import { Production } from './production';
+
+export class NonTerminal {
+  symbol: string;
+  productions: Production[];
+  first: number[];
+  follows: string[];
+  nullable: boolean;
+
+  constructor(symbol: string) {
     this.symbol = symbol;
     this.productions = [];
     this.first = [];

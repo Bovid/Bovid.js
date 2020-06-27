@@ -1,6 +1,6 @@
-import Lookahead from './lookahead';
+import { LookAhead } from './lookahead';
 
-export default class LLGenerator extends Lookahead {
+export class LLGenerator extends LookAhead {
   constructor() {
     super();
     this.computeLookaheads();

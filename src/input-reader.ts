@@ -1,4 +1,10 @@
-export default class InputReader {
+export class InputReader {
+  done: boolean;
+  input: string;
+  length: number;
+  matches: string[];
+  position: number;
+  
   constructor(input) {
     this.done = false;
     this.input = input;
@@ -7,7 +13,7 @@ export default class InputReader {
     this.position = 0;
   }
 
-  addMatch(match) {
+  addMatch(match: string) {
     this.input = this.input.slice(match.length);
     this.matches.push(match);
     this.position += match.length;

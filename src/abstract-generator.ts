@@ -3,22 +3,103 @@ import ebnfParser from 'ebnf-parser';
 import NonTerminal from './non-terminal';
 import Production from './production';
 
+export interface IGrammer {
+  parseParams: string[];
+  options: any;
+  actionInclude: () => {} | string;
+  moduleInclude: string;
+  lex: any;
+}
+
+export interface IOptions {
+  debug?: boolean;
+}
+
+export interface IYYOptions {
+  ebnf: boolean;
+  flex: boolean;
+}
+
+export interface IYY {
+  depth?: number;
+  options?: IYYOptions;
+  parseError?: Error;
+  lexer?: any;
+  parser?: any;
+  actionInclude?: number;
+  freshLine?: boolean;
+  xed?: boolean;
+  ruleSection?: boolean;
+  addDeclaration?: () => {};
+  lexComment?: () => {};
+  lexAction?: () => {};
+  prepareString?: () => {};
+}
+
+export interface ISymbol<T> {
+  $accept?: number;
+  [index: number]: T | undefined;
+  unshift(...value: T[]): number;
+  push(...value: T[]): number;
+  forEach(iterator: (value: T, index: number) => void): void;
+}
+
+export interface IObjectSymbol<T> {
+  $accept?: number;
+  [index: number]: T | undefined;
+}
+
+export interface ITable<T> {
+  [key: string]: T
+}
+
 export default class AbstractGenerator {
-  constructor(grammar, opt, debugCB) {
+  debugCB?: (msg: string) => void;
+  operators: object;
+  productions: Production[];
+  productions_: number[] | number[][];
+  conflicts: number;
+  resolutions: number[][];
+  options: IOptions;
+  parseParams: string[];
+  yy: IYY;
+  actionGroups: { [action: string]: string[] };
+  nonTerminals: {
+    $accept?: NonTerminal;
+    [terminal: string]: string[] | NonTerminal;
+  };
+  symbolId: number;
+  symbols: ISymbol<string>;
+  symbols_: IObjectSymbol<number>;
+  hasErrorRecovery: boolean;
+  terminals: (number | string)[];
+  terminals_: ITable<number>;
+  actionInclude: string;
+  moduleInclude: string;
+  DEBUG: boolean;
+  lexer: Lexer;
+  startSymbol: string;
+  EOF: string;
+  performAction: string;
+  
+  constructor(grammar: IGrammer | string, opt, debugCB?: (msg: string) => void) {
     this.debugCB = debugCB || null;
 
+    let _grammer: IGrammer;
     if (typeof grammar === 'string') {
-      grammar = ebnfParser.parse(grammar);
+      _grammer = ebnfParser.parse(grammar) as IGrammer; //TODO: Convert to typescript
+    } else {
+      _grammer = grammar as IGrammer;
     }
 
-    const options = Object.assign({}, grammar.options, opt);
+    const options = { ..._grammer.options, ...opt };
     this.operators = {};
     this.productions = [];
     this.productions_ = null;
     this.conflicts = 0;
     this.resolutions = [];
     this.options = options;
-    this.parseParams = grammar.parseParams;
+    this.parseParams = _grammer.parseParams;
     this.yy = {}; // accessed as yy free variable in the parser/lexer actions
     this.actionGroups = null;
     this.nonTerminals = null;
@@ -28,25 +109,25 @@ export default class AbstractGenerator {
     this.hasErrorRecovery = null;
     this.terminals = null;
     this.terminals_ = null;
-    this.symbols_ = null;
 
     // source included in semantic action execution scope
-    if (grammar.actionInclude) {
-      if (typeof grammar.actionInclude === 'function') {
-        grammar.actionInclude = String(grammar.actionInclude)
+    if (_grammer.actionInclude) {
+      if (typeof _grammer.actionInclude === 'function') {
+        this.actionInclude = String(_grammer.actionInclude)
           .replace(/^\s*function \(\) \{/, '')
           .replace(/\}\s*$/, '');
+      } else {
+        this.actionInclude = _grammer.actionInclude;
       }
-      this.actionInclude = grammar.actionInclude;
     }
-    this.moduleInclude = grammar.moduleInclude || '';
+    this.moduleInclude = _grammer.moduleInclude || '';
 
     this.DEBUG = options.debug || false;
 
     this.processGrammar(grammar);
 
-    if (grammar.lex) {
-      this.lexer = new Lexer(grammar.lex, null, this.terminals_);
+    if (_grammer.lex) {
+      this.lexer = new Lexer(_grammer.lex, null, this.terminals_);
     }
   }
 
@@ -73,7 +154,7 @@ export default class AbstractGenerator {
     this.symbols = [];
 
     // calculate precedence of operators
-    this.operators = this.processOperators(grammar.operators);
+    this.operators = AbstractGenerator.processOperators(grammar.operators);
 
     // build productions from cfg
     this.buildProductions(bnf);
@@ -81,7 +162,7 @@ export default class AbstractGenerator {
     if (typeof this.debugCB === 'function') {
       if (tokens && this.terminals.length !== tokens.length) {
         this.debugCB('Warning: declared tokens differ from tokens found in rules.');
-        this.debugCB(this.terminals);
+        this.debugCB(this.terminals.join(','));
         this.debugCB(tokens);
       }
     }
@@ -106,7 +187,7 @@ export default class AbstractGenerator {
     this.productions.unshift(acceptProduction);
 
     // prepend parser tokens
-    this.symbols.unshift('$accept',this.EOF);
+    this.symbols.unshift('$accept', this.EOF);
     this.symbols_.$accept = 0;
     this.symbols_[this.EOF] = 1;
     this.terminals.unshift(this.EOF);
@@ -115,7 +196,7 @@ export default class AbstractGenerator {
     this.nonTerminals.$accept.productions.push(acceptProduction);
 
     // add follow $ to start symbol
-    this.nonTerminals[this.startSymbol].follows.push(this.EOF);
+    (this.nonTerminals[this.startSymbol] as NonTerminal).follows.push(this.EOF);
 
     if(typeof this.debugCB === 'function') {
       this.symbols.forEach((sym, i) => {
@@ -147,7 +228,7 @@ export default class AbstractGenerator {
     let prods, symbol;
     const productions_ = [0];
     this.symbolId = 1;
-    const symbols_ = this.symbols_ = {};
+    const symbols_: IObjectSymbol<number> = this.symbols_ = {};
 
     this.hasErrorRecovery = false; // has error recovery
 
@@ -174,7 +255,7 @@ export default class AbstractGenerator {
       actions.push(actionGroups[action].join(' '), action, 'break;');
     }
 
-    let sym, id;
+    let sym: number, id: string;
     this.terminals = [];
     this.terminals_ = {};
     for (id in symbols_) if (symbols_.hasOwnProperty(id)) {
@@ -189,16 +270,15 @@ export default class AbstractGenerator {
     this.productions_ = productions_;
     actions.push('}');
 
-    actions = actions.join('\n')
-        .replace(/YYABORT/g, 'return false')
-        .replace(/YYACCEPT/g, 'return true');
-
     let parameters = 'yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */';
     if (this.parseParams) {
       parameters += ', ' + this.parseParams.join(', ');
     }
 
-    this.performAction = `function anonymous(${ parameters }) {\n${ actions }\n}`;
+    const actionsBody = actions.join('\n')
+      .replace(/YYABORT/g, 'return false')
+      .replace(/YYACCEPT/g, 'return true');
+    this.performAction = `function anonymous(${ parameters }) {\n${ actionsBody }\n}`;
   }
 
   createParser() {
@@ -210,7 +290,7 @@ export default class AbstractGenerator {
   }
 
   buildProduction(symbol, handle) {
-    let r, rhs, i;
+    let r: Production, rhs: string[], i;
     if (handle.constructor === Array) {
       rhs = (typeof handle[0] === 'string') ?
         handle[0].trim().split(' ') :
@@ -233,9 +313,10 @@ export default class AbstractGenerator {
             names = {};
           for (i=0;i<rhs.length;i++) {
             // check for aliased names, e.g., id[alias]
-            let rhs_i = rhs[i].match(/\[[a-zA-Z][a-zA-Z0-9_-]*\]/);
-            if (rhs_i) {
-              rhs_i = rhs_i[0].substr(1, rhs_i[0].length-2);
+            const match = rhs[i].match(/\[[a-zA-Z][a-zA-Z0-9_-]*\]/);
+            let rhs_i:string;
+            if (match) {
+              rhs_i = match[0].substr(1, match[0].length-2);
               rhs[i] = rhs[i].substr(0, rhs[i].indexOf('['));
             } else {
               rhs_i = rhs[i];
@@ -244,8 +325,8 @@ export default class AbstractGenerator {
             if (names[rhs_i]) {
               names[rhs_i + (++count[rhs_i])] = i+1;
             } else {
-              names[rhs_i] = i+1;
-              names[rhs_i + '1'] = i+1;
+              names[rhs_i] = i + 1;
+              names[rhs_i + '1'] = i + 1;
               count[rhs_i] = 1;
             }
           }
@@ -278,7 +359,7 @@ export default class AbstractGenerator {
 
         // done with aliases; strip them.
         rhs = rhs.map((e,i) => { return e.replace(/\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, '') });
-        r = new Production(symbol, rhs, productions.length+1);
+        r = new Production(symbol, rhs, productions.length + 1);
         // precedence specified also
         if (handle[2] && this.operators[handle[2].prec]) {
           r.precedence = this.operators[handle[2].prec].precedence;
@@ -287,7 +368,7 @@ export default class AbstractGenerator {
         // no action -> don't care about aliases; strip them.
         rhs = rhs.map((e,i) => { return e.replace(/\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, '') });
         // only precedence specified
-        r = new Production(symbol, rhs, productions.length+1);
+        r = new Production(symbol, rhs, productions.length + 1);
         if (this.operators[handle[1].prec]) {
           r.precedence = this.operators[handle[1].prec].precedence;
         }
@@ -302,7 +383,7 @@ export default class AbstractGenerator {
           this.addSymbol(rhs[i]);
         }
       }
-      r = new Production(symbol, rhs, productions.length+1);
+      r = new Production(symbol, rhs, productions.length + 1);
     }
     if (r.precedence === 0) {
       // set precedence

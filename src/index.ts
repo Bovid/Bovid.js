@@ -1,11 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { version } from '../package.json';
-import LR0Generator from './lr0-generator';
-import SLRGenerator from './slr-generator';
-import LR1Generator from './lr1-generator';
-import LLGenerator from './ll-generator';
-import LALRGenerator from './lalr-generator';
+import { LR0Generator } from './lr0-generator';
+import { SLRGenerator } from './slr-generator';
+import { LR1Generator } from './lr1-generator';
+import { LLGenerator } from './ll-generator';
+import { LALRGenerator } from './lalr-generator';
 
 let print;
 
@@ -54,7 +54,7 @@ function generate(g, options) {
   return generator.createParser();
 }
 
-export default {
+export {
   version,
   generate,
   LR0Generator,

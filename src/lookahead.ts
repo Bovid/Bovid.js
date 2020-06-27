@@ -1,4 +1,16 @@
-export default class LookAhead {
+import { Production } from './production';
+import { NonTerminal } from './non-terminal';
+
+export abstract class LookAhead {
+  debugCB: (value: string, seperator?: string) => void;
+  productions: Production[];
+  nonTerminals: NonTerminal[];
+  nonTerminals_: string[];
+  union: (set: number[], follows: number[]) => void;
+  firsts: number[];
+
+  abstract go_(symbol: string, handle: string[]): number;
+  
   computeLookAheads() {
     this.computeLookAheads = function () {};
     this.nullableSets();
@@ -61,7 +73,7 @@ export default class LookAhead {
   }
 
   // return the FIRST set of a symbol or series of symbols
-  first(symbol) {
+  first(symbol): number[] {
     // epsilon
     if (symbol === '') {
       return [];
@@ -91,7 +103,7 @@ export default class LookAhead {
   // fixed-point calculation of FIRST sets
   firstSets() {
     if (typeof this.debugCB === 'function') this.debugCB('Computing First sets.');
-
+    const { nonTerminals } = this;
     let cont = true,
         symbol,
         firsts;
@@ -104,7 +116,7 @@ export default class LookAhead {
         const firsts = this.first(production.handle);
         if (firsts.length !== production.first.length) {
           production.first = firsts;
-          cont=true;
+          cont = true;
         }
       });
 
@@ -126,7 +138,7 @@ export default class LookAhead {
     if (this.debugCB) this.debugCB('Computing Nullable sets.');
 
     const nonTerminals = this.nonTerminals;
-    let firsts = this.firsts = {},
+    let firsts = this.firsts = [],
         cont = true;
 
     // loop until no further changes have been made
@@ -136,7 +148,8 @@ export default class LookAhead {
       // check if each production is nullable
       this.productions.forEach((production, k) => {
         if (!production.nullable) {
-          for (let i = 0, n = 0, t; t = production.handle[i]; ++i) {
+          let i = 0, n = 0, t
+          for (; t = production.handle[i]; ++i) {
             if (this.nullable(t)) n++;
           }
           if (n===i) { // production is nullable if all tokens are nullable
@@ -148,7 +161,7 @@ export default class LookAhead {
       //check if each symbol is nullable
       for (let symbol in nonTerminals) if (nonTerminals.hasOwnProperty(symbol)) {
         if (!this.nullable(symbol)) {
-          for (let i = 0,production; production = nonTerminals[symbol].productions.item(i); i++) {
+          for (let i = 0,production; production = nonTerminals[symbol].productions[i]; i++) {
             if (production.nullable) {
               nonTerminals[symbol].nullable = cont = true;
             }
