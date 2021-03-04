@@ -1,4 +1,4 @@
-export default class ParseLocation {
+export class ParseLocation {
   firstLine: number;
   lastLine: number;
   firstColumn: number;

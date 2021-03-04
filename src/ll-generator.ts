@@ -1,14 +1,25 @@
 import { LookAhead } from './lookahead';
+import { Production } from './production';
+
+export interface IParseTable {
+  [key: number]: number[];
+}
 
 export class LLGenerator extends LookAhead {
-  constructor() {
+  table: IParseTable;
+
+  constructor(g, opt) {
     super();
-    this.computeLookaheads();
+    this.computeLookAheads();
     this.table = this.parseTable(this.productions);
   }
 
-  parseTable(productions) {
-    const table = {};
+  go_(symbol: string, handle: string): number {
+    return -1;
+  }
+
+  parseTable(productions: Production[]): IParseTable {
+    const table: IParseTable = {};
     productions.forEach((production, i) => {
       const row = table[production.symbol] || {},
         tokens = production.first;

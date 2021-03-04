@@ -1,10 +1,14 @@
-import LRGenerator from './lr-generator';
+import { LRGenerator } from './lr-generator';
 
-export default class LRLookaheadGenerator extends LRGenerator {
-  constructor() {
+export class LRLookAheadGenerator extends LRGenerator {
+  constructor(g, opt) {
     super();
 
-    this.computeLookaheads();
+    this.computeLookAheads();
     this.buildTable();
+  }
+
+  go_(symbol: string, handle: string): number {
+    return -1;
   }
 }

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-function convert(grammar, options) {
+function convert(grammar, options): string {
   options = options || {};
   let s = '';
 
@@ -11,7 +11,7 @@ function convert(grammar, options) {
   return s;
 }
 
-function generateDeclarations(grammar) {
+function generateDeclarations(grammar): string {
   let s = '',
     key;
 
@@ -43,7 +43,7 @@ function generateDeclarations(grammar) {
   return s;
 }
 
-function generateBNF(bnf, options) {
+function generateBNF(bnf, options): string {
   let s = '%%\n';
 
   for (let sym in bnf) {
@@ -54,7 +54,7 @@ function generateBNF(bnf, options) {
   return s;
 }
 
-function generateHandles(handle, options) {
+function generateHandles(handle: string | string[] | string[][], options): string {
   if (typeof handle === 'string') {
     return handle;
   } else { //array
@@ -82,7 +82,7 @@ function generateHandles(handle, options) {
   }
 }
 
-function quoteSymbols(rhs) {
+function quoteSymbols(rhs): string {
   rhs = rhs.split(' ');
 
   for (let i = 0; i < rhs.length; i++) {
@@ -91,7 +91,7 @@ function quoteSymbols(rhs) {
   return rhs.join(' ');
 }
 
-function quoteSymbol(sym) {
+function quoteSymbol(sym): string {
   if (!/[a-zA-Z][a-zA-Z0-9_\-]*/.test(sym)) {
     var quote = /'/.test(sym) ? '"' : "'";
     sym = quote+sym+quote;
@@ -102,7 +102,7 @@ function quoteSymbol(sym) {
 
 // Generate lex format from lex JSON
 
-function generateLex(lex) {
+function generateLex(lex): string {
   const s = [], indent = 28;
 
   if ('macros' in lex) {
@@ -140,7 +140,7 @@ function generateLex(lex) {
   return s.join('');
 }
 
-function generateLexRegex(regex) {
+function generateLexRegex(regex: string): string {
   var matcher = regex.replace(/^([a-zA-Z0-9]+)\\b$/, "\"$1\"")
     .replace(/\\([.*+?^${}()|\[\]\/\\])/g,"$1")
     .replace(/^\$$/,"<<EOF>>")
@@ -148,11 +148,11 @@ function generateLexRegex(regex) {
   return matcher;
 }
 
-function genLexRule (rule) {
+function genLexRule(rule: string): RegExpMatchArray | string {
   return rule.match(/\n/) ? '%{'+rule+'%}' : rule;
 }
 
-export default function toEBNF(args) {
+export function toEBNF(args): string {
   if(args.length <= 2) return;
 
   const raw = fs.readFileSync(path.resolve(args[2]), 'utf8'),

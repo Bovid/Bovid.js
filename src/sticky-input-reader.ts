@@ -1,32 +1,21 @@
 import { InputReader } from './input-reader';
-
 /**
  * An input reader for parser/lexer, uses sticky behavior
  */
 export class StickyInputReader extends InputReader {
-  constructor(input: string) {
-    super(input);
-
-    let rules = lexer.rules;
-    for (let i = 0; i < rules.length; i++) {
-      rule = rules[i];
-      rules[i] = new RegExp(rule.source.substring(1), 'y');
-    }
-  }
-
-  addMatch(match) {
+  addMatch(match: string): void {
     this.matches.push(match);
     this.position += match.length;
     this.done = (this.position >= this.length);
   }
 
-  ch() {
+  ch(): string {
     const ch = this.input[this.position];
     this.addMatch(ch);
     return ch;
   }
 
-  match(rule) {
+  match(rule: RegExp): RegExpExecArray | null {
     const match = rule.exec(this.input);
     rule.lastIndex = this.position;
     if (match !== null) {
@@ -35,17 +24,17 @@ export class StickyInputReader extends InputReader {
     return null;
   }
 
-  substring(start, end) {
+  substring(start = 0, end = 0): string {
     start = (start != 0 ? this.position + start : this.position);
     end = (end != 0 ? start + end : this.length);
     return this.input.substring(start, end);
   }
 
-  toString() {
+  toString(): string {
     return this.matches.join('');
   }
 
-  unCh(chLength) {
+  unCh(chLength: number): void {
     this.position -= chLength;
     this.position = Math.max(0, this.position);
     this.done = (this.position >= this.length);

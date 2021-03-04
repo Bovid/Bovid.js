@@ -1,7 +1,7 @@
 import Lexer from 'jison-lex';
 import ebnfParser from 'ebnf-parser';
-import NonTerminal from './non-terminal';
-import Production from './production';
+import { NonTerminal } from './non-terminal';
+import { Production } from './production';
 
 export interface IGrammer {
   parseParams: string[];
@@ -305,7 +305,8 @@ export default class AbstractGenerator {
 
       if (typeof handle[1] === 'string' || handle.length === 3) {
         // semantic action specified
-        let label = 'case ' + (productions.length+1) + ':', action = handle[1];
+        const label = `case ${this.productions.length + 1}:`;
+        let action = handle[1];
 
         // replace named semantic values ($nonterminal)
         if (action.match(/[$@][a-zA-Z][a-zA-Z0-9_]*/)) {
@@ -359,7 +360,7 @@ export default class AbstractGenerator {
 
         // done with aliases; strip them.
         rhs = rhs.map((e,i) => { return e.replace(/\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, '') });
-        r = new Production(symbol, rhs, productions.length + 1);
+        r = new Production(symbol, rhs, this.productions.length + 1);
         // precedence specified also
         if (handle[2] && this.operators[handle[2].prec]) {
           r.precedence = this.operators[handle[2].prec].precedence;
@@ -368,7 +369,7 @@ export default class AbstractGenerator {
         // no action -> don't care about aliases; strip them.
         rhs = rhs.map((e,i) => { return e.replace(/\[[a-zA-Z_][a-zA-Z0-9_-]*\]/g, '') });
         // only precedence specified
-        r = new Production(symbol, rhs, productions.length + 1);
+        r = new Production(symbol, rhs, this.productions.length + 1);
         if (this.operators[handle[1].prec]) {
           r.precedence = this.operators[handle[1].prec].precedence;
         }
@@ -383,7 +384,7 @@ export default class AbstractGenerator {
           this.addSymbol(rhs[i]);
         }
       }
-      r = new Production(symbol, rhs, productions.length + 1);
+      r = new Production(symbol, rhs, this.productions.length + 1);
     }
     if (r.precedence === 0) {
       // set precedence

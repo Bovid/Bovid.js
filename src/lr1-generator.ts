@@ -1,7 +1,13 @@
 import { LRGenerator } from './lr-generator';
 import { LRGeneratorItemSet } from './lr-generator-item-set';
+import { LR1GeneratorItem } from './lr1-generator-item';
 
 export class LR1Generator extends LRGenerator {
+  Item: typeof LR1GeneratorItem = LR1GeneratorItem;
+
+  constructor(g, opt) {
+    super();
+  }
 
   closureOperation(itemSet /*, closureSet*/ ) {
     let closureSet = new LRGeneratorItemSet();
@@ -11,7 +17,7 @@ export class LR1Generator extends LRGenerator {
 
     do {
       itemQueue = [];
-      closureSet.concat(set);
+      closureSet.concat(_set);
       _set.forEach((item) => {
         const symbol = item.markedSymbol;
         let b, r;
@@ -43,5 +49,9 @@ export class LR1Generator extends LRGenerator {
 
   lookAheads(state, item) {
     return item.follows;
+  }
+
+  go_(symbol: string, handle: string): number {
+    return -1;
   }
 }

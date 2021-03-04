@@ -5,34 +5,32 @@ import escodegen from 'escodegen';
 import { LookAhead } from './lookahead';
 import { LRGeneratorItem } from './lr-generator-item';
 import { LRGeneratorItemSet } from './lr-generator-item-set';
+import { LRGeneratorCollection } from './lr-generator-collection';
+import { LRTable } from './lr-table';
+import { State } from './state';
+import { GeneratorResolution } from './generator-resolution';
+import { Production } from './production';
+import { GeneratorAction } from './generator-action';
+import { GeneratorOperator } from './generator-operator';
 
-export class LRGenerator extends LookAhead {
+export interface ILRGeneratorOptions {
+  noDefaultResolve?: boolean;
+  moduleName?: string;
+  moduleMain?: string;
+}
+
+export abstract class LRGenerator extends LookAhead {
+  options: ILRGeneratorOptions;
   NONASSOC = 0;
   DEBUG = false;
-
-  lrGeneratorDebug = {
-    beforeparseTable: function () {
-
-    },
-    afterparseTable: function () {
-
-    },
-    aftercanonicalCollection: function (states) {
-      var trace = this.trace;
-      trace("\nItem sets\n------");
-
-      states.forEach(function (state, i) {
-        trace("\nitem set",i,"\n"+state.join("\n"), '\ntransitions -> ', JSON.stringify(state.edges));
-      });
-    },
-
-    printAction: function(a, gen) {
-      var s = a[0] == 1 ? 'shift token (then go to state '+a[1]+')' :
-          a[0] == 2 ? 'reduce by rule: '+gen.productions[a[1]] :
-              'accept' ;
-      return s;
-    }
-  };
+  EOF: string;
+  symbols_: { [symbol: string]: string };
+  states: LRGeneratorCollection;
+  table: LRTable;
+  defaultActions: any;
+  operators: { [symbol: string]: GeneratorOperator };
+  Item: typeof LRGeneratorItem = LRGeneratorItem;
+  ItemSet: typeof LRGeneratorItemSet = LRGeneratorItemSet;
 
   // Function that extends an object with the given value for all given keys
   // e.g., o([1, 3, 4], [6, 7], { x: 1, y: 2 }) = { 1: [6, 7]; 3: [6, 7], 4: [6, 7], x: 1, y: 2 }
@@ -44,8 +42,6 @@ export class LRGenerator extends LookAhead {
      * Mixin for common LR parser behavior
      * */
   buildTable() {
-    if (this.DEBUG) this.mix(lrGeneratorDebug); // mixin debug methods
-
     this.states = this.canonicalCollection();
     this.table = this.parseTable(this.states);
     this.defaultActions = this.findDefaults(this.table);
@@ -69,7 +65,7 @@ export class LRGenerator extends LookAhead {
     return defaults;
   }
 
-  closureOperation(itemSet /*, closureSet*/) {
+  closureOperation(itemSet /*, closureSet*/): LRGeneratorItemSet {
     const closureSet = new LRGeneratorItemSet(),
       syms = {};
 
@@ -109,7 +105,7 @@ export class LRGenerator extends LookAhead {
     return closureSet;
   }
 
-  goToOperation(itemSet, symbol) {
+  goToOperation(itemSet: LRGeneratorItemSet, symbol: string): LRGeneratorItemSet {
     let gotoSet = new this.ItemSet();
 
     itemSet.forEach((item, n) => {
@@ -123,21 +119,22 @@ export class LRGenerator extends LookAhead {
 
   /* Create unique set of item sets
    * */
-  canonicalCollection() {
-    var item1 = new LRGeneratorItem(this.productions[0], 0, [this.EOF]);
-    var firstState = this.closureOperation(new LRGeneratorItemSet(item1)),
-        states = [firstState],
-        marked = 0,
-        itemSet;
+  canonicalCollection(): LRGeneratorCollection {
+    const item1 = new LRGeneratorItem(this.productions[0], 0, [this.EOF]),
+      firstState = this.closureOperation(new LRGeneratorItemSet([item1])),
+      states = new LRGeneratorCollection([firstState]);
+    let marked = 0,
+      itemSet: LRGeneratorItemSet;
 
-    states.has = {};
-    states.has[firstState] = 0;
+    // states.has = {};
+    // states.has[firstState] = 0;
 
-    while (marked !== states.size()) {
-      itemSet = states.item(marked); marked++;
+    while (marked !== states.length) {
+      itemSet = states.get(marked); marked++;
       itemSet.forEach((item) => {
-        if (item.markedSymbol && item.markedSymbol !== this.EOF)
+        if (item.markedSymbol && item.markedSymbol !== this.EOF) {
           this.canonicalCollectionInsert(item.markedSymbol, itemSet, states, marked-1);
+        }
       });
     }
 
@@ -145,57 +142,52 @@ export class LRGenerator extends LookAhead {
   }
 
     // Pushes a unique state into the que. Some parsing algorithms may perform additional operations
-  canonicalCollectionInsert(symbol, itemSet, states, stateNum) {
-    var g = this.gotoOperation(itemSet, symbol);
-    if (!g.predecessors)
-      g.predecessors = {};
-    // add g to que if not empty or duplicate
-    if (!g.isEmpty()) {
-      var gv = g.valueOf(),
-          i = states.has[gv];
-      if (i === -1 || typeof i === 'undefined') {
-        states.has[gv] = states.size();
-        itemSet.edges[symbol] = states.size(); // store goto transition for table
-        states.push(g);
-        g.predecessors[symbol] = [stateNum];
-      } else {
-        itemSet.edges[symbol] = i; // store goto transition for table
-        states.item(i).predecessors[symbol].push(stateNum);
-      }
+  canonicalCollectionInsert(symbol: string, itemSet: LRGeneratorItemSet, states: LRGeneratorCollection, stateNum: number): void {
+    const goToItemSet: LRGeneratorItemSet = this.goToOperation(itemSet, symbol);
+    // add goToItemSet to que if not empty or duplicate
+    if (!goToItemSet.isEmpty()) {
+      states.addItemSet(goToItemSet);
+      itemSet.addEdge(symbol, states); // store goto transition for table
+      states.addItemSet(goToItemSet);
+      goToItemSet.addPredecessor(symbol, itemSet)
     }
   }
 
-  parseTable(itemSets) {
+  parseTable(itemSets: LRGeneratorCollection): LRTable {
     if (typeof this.debugCB === 'function') {
-      this.debugCB("Building parse table.");
+      this.debugCB('Building parse table.');
     }
 
-    var states = [],
+    const table = new LRTable(),
         nonTerminals = this.nonTerminals,
         operators = this.operators,
-        conflictedStates = {}, // array of [state, token] tuples
+        conflictedStates: State[] = [], // array of [state, token] tuples
         s = 1, // shift
         r = 2, // reduce
         a = 3; // accept
 
     // for each item set
-    itemSets.forEach((itemSet, k) => {
-      var state = states[k] = {};
-      var action, stackSymbol;
+    for (let k = 0; k < itemSets.length; k++) {
+      const itemSet = itemSets.get(k);
+      const state = new State(k, itemSet);
+      table.addState(k, state);
+      
+      let action: GeneratorAction,
+        stackSymbol: string;
 
       // set shift and goto actions
       for (stackSymbol in itemSet.edges) {
         itemSet.forEach((item, j) => {
           // find shift and goto actions
           if (item.markedSymbol == stackSymbol) {
-            var gotoState = itemSet.edges[stackSymbol];
+            const gotoState = itemSet.getEdge(stackSymbol);
             if (nonTerminals[stackSymbol]) {
               // store state to go to after a reduce
               //this.trace(k, stackSymbol, 'g'+gotoState);
-              state[this.symbols_[stackSymbol]] = gotoState;
+              state[this.symbols_[stackSymbol]] = new GeneratorAction(gotoState);
             } else {
               //this.trace(k, stackSymbol, 's'+gotoState);
-              state[this.symbols_[stackSymbol]] = [s,gotoState];
+              state[this.symbols_[stackSymbol]] = new GeneratorAction(gotoState).shift();
             }
           }
         });
@@ -205,7 +197,7 @@ export class LRGenerator extends LookAhead {
       itemSet.forEach((item, j) => {
         if (item.markedSymbol == this.EOF) {
           // accept
-          state[this.symbols_[this.EOF]] = [a];
+          state[this.symbols_[this.EOF]] = new GeneratorAction(null).accept();
           //this.trace(k, this.EOF, state[this.EOF]);
         }
       });
@@ -215,56 +207,63 @@ export class LRGenerator extends LookAhead {
       // set reductions and resolve potential conflicts
       itemSet.reductions.forEach((item, j) => {
         // if parser uses lookahead, only enumerate those terminals
-        var terminals = allterms || this.lookAheads(itemSet, item);
+        const terminals = allterms || this.lookAheads(itemSet, item);
 
         terminals.forEach((stackSymbol) => {
           action = state[this.symbols_[stackSymbol]];
-          var op = operators[stackSymbol];
+          const operator = operators[stackSymbol];
 
           // Reading a terminal and current position is at the end of a production, try to reduce
-          if (action || action && action.length) {
-            var sol = this.resolveConflict(item.production, op, [r,item.production.id], action[0] instanceof Array ? action[0] : action);
-            this.resolutions.push([k,stackSymbol,sol]);
-            if (sol.bydefault) {
+          if (action.isEndOfProduction) {
+            const resolution = this.resolveConflict(
+              item.production,
+              stackSymbol,
+              operator,
+              new GeneratorAction(item.production).reduce(),
+              action
+            );
+            this.resolutions.push(resolution);
+            if (resolution.bydefault) {
               this.conflicts++;
               if (!this.DEBUG) {
-                this.warn('Conflict in grammar: multiple actions possible when lookahead token is ',stackSymbol,' in state ',k, "\n- ", printAction(sol.r, this), "\n- ", printAction(sol.s, this));
-                conflictedStates[k] = true;
+                this.warn('Conflict in grammar: multiple actions possible when lookahead token is ',stackSymbol,' in state ',k, "\n- ", printAction(resolution.reduce, this), "\n- ", printAction(resolution.shift, this));
+                conflictedStates.push(state);
               }
               if (this.options.noDefaultResolve) {
-                if (!(action[0] instanceof Array))
-                  action = [action];
-                action.push(sol.r);
+                action = resolution.reduce.reduce();
               }
             } else {
-              action = sol.action;
+              action = resolution.action;
             }
           } else {
-            action = [r,item.production.id];
+            action = new GeneratorAction(item.production).reduce();
           }
-          if (action && action.length) {
+          if (action.state) {
             state[this.symbols_[stackSymbol]] = action;
-          } else if (action === NONASSOC) {
+          } else if (action.isNonAssociative) {
             state[this.symbols_[stackSymbol]] = undefined;
           }
         });
       });
-
-    });
+    }
 
     if (!this.DEBUG && this.conflicts > 0) {
       this.warn("\nStates with conflicts:");
-      each(conflictedStates, (val, state) => {
-        this.warn('State '+state);
-        this.warn('  ',itemSets.item(state).join("\n  "));
+      conflictedStates.forEach((state) => {
+        this.warn(`State ${state.stateIndex}`);
+        this.warn('  ', state.itemSet.join("\n  "));
       });
     }
 
     if (typeof this.debugCB === 'function') {
       if (this.conflicts > 0) {
-        this.resolutions.forEach((r, i) => {
-          if (r[2].bydefault) {
-            this.warn('Conflict at state: ',r[0], ', token: ',r[1], "\n  ", printAction(r[2].r, this), "\n  ", printAction(r[2].s, this));
+        this.resolutions.forEach((resolution, i) => {
+          if (resolution.bydefault) {
+            // this.warn('Conflict at state: ',resolution.state, ', token: ',resolution[1], "\n  ", printAction(resolution.reduce, this), "\n  ", printAction(resolution.shift, this));
+            this.warn(`Conflict at state: ${resolution.state}
+  token: ${resolution.token}
+    ${printAction(resolution.reduce, this)}
+    ${printAction(resolution.shift, this)}`);
           }
         });
         this.trace("\n"+this.conflicts+" Conflict(s) found in grammar.");
@@ -272,76 +271,89 @@ export class LRGenerator extends LookAhead {
       this.trace("Done.");
     }
 
-    return states;
+    return table;
   }
 
   // resolves shift-reduce and reduce-reduce conflicts
-  resolveConflict(production, op, reduce, shift) {
-    var sln = {production: production, operator: op, r: reduce, s: shift},
-        s = 1, // shift
-        r = 2, // reduce
-        a = 3; // accept
+  resolveConflict(
+    production: Production,
+    stackSymbol: string,
+    operator: GeneratorOperator,
+    reduce: GeneratorAction,
+    shift: GeneratorAction
+  ) {
+    const resolution = new GeneratorResolution(production, stackSymbol),
+      s = 1, // shift
+      r = 2, // reduce
+      a = 3; // accept
 
-    if (shift[0] === r) {
-      sln.msg = "Resolve R/R conflict (use first production declared in grammar.)";
-      sln.action = shift[1] < reduce[1] ? shift : reduce;
-      if (shift[1] !== reduce[1]) sln.bydefault = true;
-      return sln;
+    if (shift.isReduce) {
+      resolution.msg = "Resolve R/R conflict (use first production declared in grammar.)";
+      resolution.action = (shift.state as Production).id < (reduce.state as Production).id ? shift : reduce;
+      if (shift.state !== reduce.state) {
+        resolution.bydefault = true;
+      }
+      return resolution;
     }
 
-    if (production.precedence === 0 || !op) {
-      sln.msg = "Resolve S/R conflict (shift by default.)";
-      sln.bydefault = true;
-      sln.action = shift;
-    } else if (production.precedence < op.precedence ) {
-      sln.msg = "Resolve S/R conflict (shift for higher precedent operator.)";
-      sln.action = shift;
-    } else if (production.precedence === op.precedence) {
-      if (op.assoc === "right" ) {
-        sln.msg = "Resolve S/R conflict (shift for right associative operator.)";
-        sln.action = shift;
-      } else if (op.assoc === "left" ) {
-        sln.msg = "Resolve S/R conflict (reduce for left associative operator.)";
-        sln.action = reduce;
-      } else if (op.assoc === "nonassoc" ) {
-        sln.msg = "Resolve S/R conflict (no action for non-associative operator.)";
-        sln.action = NONASSOC;
+    if (production.precedence === 0 || !operator) {
+      resolution.msg = "Resolve S/R conflict (shift by default.)";
+      resolution.bydefault = true;
+      resolution.action = shift.shift();
+    } else if (production.precedence < operator.precedence ) {
+      resolution.msg = "Resolve S/R conflict (shift for higher precedent operator.)";
+      resolution.action = shift.shift();
+    } else if (production.precedence === operator.precedence) {
+      if (operator.assoc === "right" ) {
+        resolution.msg = "Resolve S/R conflict (shift for right associative operator.)";
+        resolution.action = shift.shift();
+      } else if (operator.assoc === "left" ) {
+        resolution.msg = "Resolve S/R conflict (reduce for left associative operator.)";
+        resolution.action = reduce.reduce();
+      } else if (operator.assoc === "nonassoc" ) {
+        resolution.msg = "Resolve S/R conflict (no action for non-associative operator.)";
+        resolution.action = new GeneratorAction(null).nonAssociative();
       }
     } else {
-      sln.msg = "Resolve conflict (reduce for higher precedent production.)";
-      sln.action = reduce;
+      resolution.msg = "Resolve conflict (reduce for higher precedent production.)";
+      resolution.action = reduce.reduce();
     }
 
-    return sln;
+    return resolution;
   }
 
-  generateAMDModule(opt){
-    opt = Object.assign({}, this.options, opt);
-    var module = this.generateModule_();
-    var out = '\n\ndefine(function(require){\n'
-        + module.commonCode
-        + '\nvar parser = '+ module.moduleCode
-        + "\n"+this.moduleInclude
-        + (this.lexer && this.lexer.generateModule ?
-        '\n' + this.lexer.generateModule() +
-        '\nparser.lexer = lexer;' : '')
-        + '\nreturn parser;'
-        + '\n});'
+  generateAMDModule(opt?: ILRGeneratorOptions){
+    opt = { ...this.options, ...opt };
+    const module = this.generateModule_();
+    const out = `
+define(function(require) {
+  ${module.commonCode}
+  var parser = ${module.moduleCode};
+  ${this.moduleInclude}
+  ${
+    this.lexer && this.lexer.generateModule
+      ? `${this.lexer.generateModule()};parser.lexer = lexer;`
+      : ''
+  }
+  return parser;
+});`
     return out;
   }
 
-  generateCommonJSModule(opt) {
-    opt = Object.assign({}, this.options, opt);
-    var moduleName = opt.moduleName || "parser";
-    var out = this.generateModule(opt)
-        + "\n\n\nif (typeof require !== 'undefined' && typeof exports !== 'undefined') {"
-        + "\nexports.parser = "+moduleName+";"
-        + "\nexports.Parser = "+moduleName+".Parser;"
-        + "\nexports.parse = function () { return "+moduleName+".parse.apply("+moduleName+", arguments); };"
-        + "\nexports.main = "+ String(opt.moduleMain || commonjsMain) + ";"
-        + "\nif (typeof module !== 'undefined' && require.main === module) {\n"
-        + "  exports.main(process.argv.slice(1));\n}"
-        + "\n}";
+  generateCommonJSModule(opt?: ILRGeneratorOptions) {
+    opt = { ...this.options, ...opt };
+    var moduleName = opt.moduleName || 'parser';
+    var out = `this.generateModule(opt);
+
+if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
+  exports.parser = ${moduleName};
+  exports.Parser = ${moduleName}.Parser;
+  exports.parse = function () { return ${moduleName}.parse.apply(${moduleName}, arguments); };
+  exports.main = ${String(opt.moduleMain || commonjsMain)};
+  if (typeof module !== 'undefined' && require.main === module) {
+    exports.main(process.argv.slice(1));
+  }
+}`;
 
     return out;
   }
@@ -451,9 +463,9 @@ export class LRGenerator extends LookAhead {
     return out;
   }
 
-  generate(opt) {
-    opt = Object.assign({}, this.options, opt);
-    var code = "";
+  generate(opt: ILRGeneratorOptions) {
+    opt = { ...this.options, ...opt };
+    let code = "";
 
     // check for illegal identifier
     if (!opt.moduleName || !opt.moduleName.match(/^[A-Za-z_$][A-Za-z0-9_$]*$/)) {
@@ -478,7 +490,7 @@ export class LRGenerator extends LookAhead {
   // - module.commonCode: initialization code that should be placed before the module
   // - module.moduleCode: code that creates the module object
   generateModule_() {
-    var parseFn = String(parser.parse);
+    let parseFn = String(parser.parse);
     if (!this.hasErrorRecovery) {
       parseFn = this.removeErrorRecovery(parseFn);
     }
@@ -655,8 +667,8 @@ export class LRGenerator extends LookAhead {
   variableTokensLength = this.variableTokens.length;
   // Creates a variable with a unique name
   createVariable() {
-    var id = this.nextVariableId++;
-    var name = '$V';
+    let id = this.nextVariableId++;
+    let name = '$V';
 
     do {
       name += this.variableTokens[id % this.variableTokensLength];
@@ -667,7 +679,7 @@ export class LRGenerator extends LookAhead {
   }
 
   createParser() {
-    var p = eval(this.generateModuleExpr());
+    const p = eval(this.generateModuleExpr());
 
     // for debugging
     p.productions = this.productions;
@@ -687,4 +699,16 @@ export class LRGenerator extends LookAhead {
 
     return p;
   }
+
+  warn(...parts: string[]) {
+    console.log(parts.join(''));
+  }
+}
+
+function printAction(a: GeneratorAction, gen) {
+  var s = a.isShift ? 'shift token (then go to state ' + a[1] + ')' :
+      a[0] == 2 ? 'reduce by rule: ' + gen.productions[a[1]] :
+                  'accept' ;
+
+  return s;
 }

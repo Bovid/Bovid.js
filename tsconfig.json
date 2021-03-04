@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "outDir": "build",
+    "module": "esnext",
+    "types": ["node"]
+  },
+  "exclude": [
+    "node_modules/**"
+  ]
+}

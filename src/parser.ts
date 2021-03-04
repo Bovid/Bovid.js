@@ -1,4 +1,6 @@
-import ParseLocation from './parse-location';
+import { Lexer, IYYLoc } from './lexer';
+import { ParseLocation } from './parse-location';
+
 const TERROR = 2;
 const EOF = 1;
 
@@ -11,21 +13,14 @@ interface IDictionary {
   terminals_: number[];
 }
 
-interface IYY {
-  lexer: any;
-  parser: Parser;
+interface IYY<LexerType extends Lexer> {
+  lexer: LexerType;
+  parser: Parser<LexerType>;
   parseError?: string;
 }
 
 interface IParseError {
   (error: string, hash: IParseHash): void;
-}
-
-interface IYYLoc {
-  first_line: number;
-  first_column: number;
-  last_line: number;
-  last_column: number;
 }
 
 interface IParseHash {
@@ -42,7 +37,7 @@ interface IYYVal {
   $?: number[];
 }
 
-export default class Parser {
+export abstract class Parser<LexerType extends Lexer, OutputType> {
   table: number[][];
   stack: number[];
   defaultActions: number[][];
@@ -53,8 +48,8 @@ export default class Parser {
   tstack: number[];
   vstack: (number | null)[];
   lstack: number[];
-  lexer: any;
-  yy: IYY;
+  lexer: LexerType;
+  yy: IYY<LexerType>;
   parseError: string | IParseError;
 
   constructor(dict: IDictionary) {
@@ -72,8 +67,8 @@ export default class Parser {
     this.yy = null;
   }
 
-  lex() {
-    let token;
+  lex(): string | number {
+    let token: string | number;
     token = this.lexer.lex() || EOF;
     // if token isn't its numeric value, convert
     if (typeof token !== 'number') {
@@ -105,7 +100,7 @@ export default class Parser {
   }
 
 
-  parse(input) {
+  parse(input: string): OutputType | boolean {
     let stack = this.stack = [0],
         tstack = this.tstack = [], // token stack
         vstack = this.vstack = [null], // semantic value stack
@@ -121,7 +116,7 @@ export default class Parser {
     //this.reductionCount = this.shiftCount = 0;
     const lexer = this.lexer;
     let sharedState = {
-      yy: {} as IYY
+      yy: {} as IYY<LexerType>
     };
     // copy state
     for (let k in this.yy) {
@@ -135,7 +130,12 @@ export default class Parser {
     sharedState.yy.parser = this;
     
     if (typeof lexer.yylloc === 'undefined') {
-      lexer.yylloc = {};
+      lexer.yylloc = {
+        first_column: -1,
+        first_line: -1,
+        last_column: -1,
+        last_line: -1,
+      };
     }
 
     let yyloc = lexer.yylloc;
@@ -183,14 +183,8 @@ export default class Parser {
                   expected.push(`'${this.terminals_[p]}'`);
                 }
               }
-              if (lexer.showPosition) {
-                errStr = 'Parse error on line ' + (yylineno + 1) + ":\n" + lexer.showPosition() + "\nExpecting " + expected.join(', ') + ", got '" + (this.terminals_[symbol] || symbol) + "'";
-              } else {
-                errStr = 'Parse error on line ' + (yylineno + 1) + ": Unexpected " +
-                    (symbol === EOF ? "end of input" :
-                        ("'" + (this.terminals_[symbol] || symbol) + "'"));
-              }
-              return (this.parseError as IParseError)(errStr, {
+              errStr = 'Parse error on line ' + (yylineno + 1) + ":\n" + lexer.showPosition() + "\nExpecting " + expected.join(', ') + ", got '" + (this.terminals_[symbol] || symbol) + "'";
+              (this.parseError as IParseError)(errStr, {
                 text: lexer.match,
                 token: this.terminals_[symbol] || symbol,
                 line: lexer.yylineno,
@@ -198,6 +192,7 @@ export default class Parser {
                 expected: expected,
                 recoverable: (error_rule_depth !== false)
               });
+              throw new Error('Uncaught exception. Is this.parseError setup to throw?');
             } else if (preErrorSymbol !== EOF) {
               error_rule_depth = this.locateNearestErrorRecoveryRule(state);
             }
@@ -315,7 +310,7 @@ export default class Parser {
     this.lstack.length = this.lstack.length - n;
   }
 
-  setLexer(lexer) {
+  setLexer(lexer: LexerType): void {
     this.lexer = lexer;
   }
 

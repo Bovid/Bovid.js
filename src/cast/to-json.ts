@@ -3,7 +3,7 @@ import path from 'path';
 import bnfParser from '../ebnf/parser';
 import lexParser from '../lex/parser';
 
-export default function toJson(argv) {
+export function toJson(argv) {
   if(argv.length === 1) return;
 
   const args = argv.slice(1);

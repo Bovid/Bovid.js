@@ -1,18 +1,21 @@
 import { Production } from './production';
 import { NonTerminal } from './non-terminal';
+import { GeneratorResolution } from './generator-resolution';
 
 export abstract class LookAhead {
+  conflicts: number = 0;
   debugCB: (value: string, seperator?: string) => void;
   productions: Production[];
   nonTerminals: NonTerminal[];
-  nonTerminals_: string[];
+  nterms_: { [id: string]: number };
   union: (set: number[], follows: number[]) => void;
   firsts: number[];
+  resolutions: GeneratorResolution[];
 
   abstract go_(symbol: string, handle: string[]): number;
   
   computeLookAheads() {
-    this.computeLookAheads = function () {};
+    this.computeLookAheads = () => {};
     this.nullableSets();
     this.firstSets();
     this.followSets();
@@ -43,7 +46,7 @@ export abstract class LookAhead {
           if (ctx) {
             q = this.go_(production.symbol, production.handle.slice(0, i));
           }
-          const bool = !ctx || q === parseInt(this.nonTerminals_[t], 10);
+          const bool = !ctx || q === parseInt(this.nterms_[t].toString(), 10);
 
           if (i === production.handle.length+1 && bool) {
             set = this.nonTerminals[production.symbol].follows;
